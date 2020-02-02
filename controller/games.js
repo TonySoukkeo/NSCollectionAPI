@@ -138,11 +138,25 @@ module.exports.getAllGames = async (req, res, next) => {
     const NUM_OF_ITEMS_ON_PAGE = 42;
     const page = req.body.page || 1;
 
+    // Set up filter queries
     let filter = {};
     let games;
     let gameTotal;
+    let priceFilter = {};
 
-    // Set up filter queries
+    if (priceRange.min || priceRange.max) {
+      priceFilter = {
+        $or: [
+          {
+            salePrice: { $gte: priceRange.min, $lte: priceRange.max }
+          },
+          {
+            price: { $gte: priceRange.min, $lte: priceRange.max }
+          }
+        ]
+      };
+    }
+
     if (sale) filter.salePrice = { $exists: true };
 
     if (demo) filter.demo = true;
@@ -163,6 +177,16 @@ module.exports.getAllGames = async (req, res, next) => {
         .map(obj => {
           const gameDetails = obj.details[0];
           let match = true;
+
+          if (priceRange.min || priceRange.max) {
+            const hasPriceRange =
+              (gameDetails.salePrice >= priceRange.min &&
+                gameDetails.salePrice <= priceRange.max) ||
+              (gameDetails.price >= priceRange.min &&
+                gameDetails.price <= priceRange.max);
+
+            if (!hasPriceRange) match = false;
+          }
 
           if (sale && !gameDetails.salePrice) {
             match = false;
@@ -197,7 +221,7 @@ module.exports.getAllGames = async (req, res, next) => {
         NUM_OF_ITEMS_ON_PAGE * page
       );
     } else if (comingSoon) {
-      const comingSoonGames = await ComingSoon.find({}).populate(
+      const comingSoonGames = await ComingSoon.find().populate(
         "details",
         "title price salePrice image dlc cloudSave onlinePlay demo"
       );
@@ -206,6 +230,16 @@ module.exports.getAllGames = async (req, res, next) => {
         .map(obj => {
           const gameDetails = obj.details[0];
           let match = true;
+
+          if (priceRange.min || priceRange.max) {
+            const hasPriceRange =
+              (gameDetails.salePrice >= priceRange.min &&
+                gameDetails.salePrice <= priceRange.max) ||
+              (gameDetails.price >= priceRange.min &&
+                gameDetails.price <= priceRange.max);
+
+            if (!hasPriceRange) match = false;
+          }
 
           if (sale && !gameDetails.salePrice) {
             match = false;
@@ -240,12 +274,24 @@ module.exports.getAllGames = async (req, res, next) => {
         NUM_OF_ITEMS_ON_PAGE * page
       );
     } else {
-      games = await Games.find(filter, "title price salePrice image")
+      games = await Games.find(
+        {
+          $and: [filter, priceFilter]
+        },
+        "title price salePrice image"
+      )
         .limit(NUM_OF_ITEMS_ON_PAGE)
         .skip(page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE);
 
       // Get total games from collection
-      gameTotal = await Games.find(filter).length;
+      const filteredGames = await Games.find(
+        {
+          $and: [filter, priceFilter]
+        },
+        "title price salePrice image"
+      );
+
+      gameTotal = filteredGames.length;
     }
 
     let loadMore = true;
