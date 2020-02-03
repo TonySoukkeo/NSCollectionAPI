@@ -89,25 +89,39 @@ module.exports.getGames = async type => {
     game = await page.evaluate(() => {
       return Array.from(
         document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => ({
-        title: games
-          .querySelector("h3")
-          .textContent.replace(
-            /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-            ""
-          ),
-        price:
-          (games.querySelector(".row-price .strike") &&
+      ).map(games => {
+        let price;
+
+        const free =
+          games.querySelector(".row-price strong") &&
+          games.querySelector(".row-price strong").textContent === "Free";
+
+        if (free) {
+          price = 0;
+        } else {
+          price =
+            (games.querySelector(".row-price .strike") &&
+              parseFloat(
+                games
+                  .querySelector(".row-price .strike")
+                  .textContent.split("$")[1]
+              )) ||
             parseFloat(
-              games
-                .querySelector(".row-price .strike")
-                .textContent.split("$")[1]
-            )) ||
-          parseFloat(
-            games.querySelector(".row-price strong").textContent.split("$")[1]
-          ),
-        url: games.href
-      }));
+              games.querySelector(".row-price strong").textContent.split("$")[1]
+            );
+        }
+
+        return {
+          title: games
+            .querySelector("h3")
+            .textContent.replace(
+              /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
+              ""
+            ),
+          price,
+          url: games.href
+        };
+      });
     });
   } else if (type === "coming soon") {
     game = await page.evaluate(() => {
@@ -127,25 +141,39 @@ module.exports.getGames = async type => {
     game = await page.evaluate(() => {
       return Array.from(
         document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => ({
-        title: games
-          .querySelector("h3")
-          .textContent.replace(
-            /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-            ""
-          ),
-        price:
-          (games.querySelector(".row-price .strike") &&
+      ).map(games => {
+        let price;
+
+        const free =
+          games.querySelector(".row-price strong") &&
+          games.querySelector(".row-price strong").textContent === "Free";
+
+        if (free) {
+          price = 0;
+        } else {
+          price =
+            (games.querySelector(".row-price .strike") &&
+              parseFloat(
+                games
+                  .querySelector(".row-price .strike")
+                  .textContent.split("$")[1]
+              )) ||
             parseFloat(
-              games
-                .querySelector(".row-price .strike")
-                .textContent.split("$")[1]
-            )) ||
-          parseFloat(
-            games.querySelector(".row-price strong").textContent.split("$")[1]
-          ),
-        url: games.href
-      }));
+              games.querySelector(".row-price strong").textContent.split("$")[1]
+            );
+        }
+
+        return {
+          title: games
+            .querySelector("h3")
+            .textContent.replace(
+              /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
+              ""
+            ),
+          price,
+          url: games.href
+        };
+      });
     });
   } else if (type === "sale") {
     game = await page.evaluate(() => {
@@ -346,10 +374,10 @@ module.exports.getGameDetails = async (url, type) => {
         const msrp = document.querySelector(".price .msrp");
 
         if (!msrp) return;
+        else if (msrp.textContent === "Free") return 0;
         else if (msrp.textContent.trim().length !== 0) {
           return parseFloat(msrp.textContent.split("$")[1]);
         }
-        return;
       });
     } else {
       price = await page.evaluate(() => {
@@ -360,8 +388,7 @@ module.exports.getGameDetails = async (url, type) => {
         } else if (isNaN(msrp)) {
           return 0;
         }
-
-        return 0;
+        return;
       });
     }
 
