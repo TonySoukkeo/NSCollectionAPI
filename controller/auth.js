@@ -6,6 +6,9 @@ const nodemailer = require("nodemailer");
 const sgTransport = require("nodemailer-sendgrid-transport");
 const jwt = require("jsonwebtoken");
 
+// Helper functions
+const { error } = require("../util/errorHandling");
+
 dotenv.config();
 
 // Sendgrid configuration
@@ -38,10 +41,7 @@ module.exports.register = async (req, res, next) => {
     const hasErrors = !result.isEmpty();
 
     if (hasErrors) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = result.errors[0].msg;
-      throw error;
+      error(422, result.errors[0].msg);
     }
 
     // Check if email isn't already being used
@@ -50,20 +50,14 @@ module.exports.register = async (req, res, next) => {
     });
 
     if (emailAlreadyExists) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = "Email already exists";
-      throw error;
+      error(422, "Email already exists");
     }
 
     // Check if username isn't already taken
     const usernameAlreadyExists = await User.findOne({ userName: userName });
 
     if (usernameAlreadyExists) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = "Username already exists";
-      throw error;
+      error(422, "Username already exists");
     }
 
     // Sanitize first name and last names
@@ -144,11 +138,10 @@ module.exports.confirmEmail = async (req, res, next) => {
     const tokenExists = await Token.findOne({ token });
 
     if (!tokenExists || !userExists) {
-      const error = new Error();
-      error.statusCode = 404;
-      error.message =
-        "Invalid verification code. Please request a new confirmation email";
-      throw error;
+      error(
+        404,
+        "Invalid verification code. Please request a new confirmation email"
+      );
     }
 
     // Continue if there are no errors
@@ -176,18 +169,12 @@ module.exports.resendVerification = async (req, res, next) => {
     const userExists = await User.findOne({ email });
 
     if (!userExists) {
-      const error = new Error();
-      error.statusCode = 404;
-      error.message = "Email not found";
-      throw error;
+      error(404, "Email not found");
     }
 
     // Check if user is already verified
     if (userExists.isVerified) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = "User is already verified";
-      throw error;
+      error(422, "User is already verified");
     }
 
     // Check token collection for any existing documents
@@ -242,23 +229,11 @@ module.exports.postLogin = async (req, res, next) => {
     // Check if either password or userLogin is empty
     // Or if password is below 10 characters long
     if (userLogin.length === 0) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message("Username or email is required");
-
-      throw error;
+      error(422, "Username or email is required");
     } else if (password.length === 0) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = "Password is required";
-
-      throw error;
+      error(422, "Password is required");
     } else if (password.length < 10) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = "Invalid username/email or password";
-
-      throw error;
+      error(422, "Invalid username/email or password");
     }
 
     const re = /[^@]+@[^@]+\.[^@]+/gi;
@@ -274,33 +249,21 @@ module.exports.postLogin = async (req, res, next) => {
       const hasErrors = !result.isEmpty();
 
       if (hasErrors) {
-        const error = new Error();
-        error.statusCode = 422;
-        error.message = result.errors[0].msg;
-
-        throw error;
+        error(422, result.errors[0].msg);
       }
 
       // Check if user exists
       user = await User.findOne({ email: userLogin.toLowerCase() });
 
       if (!user) {
-        const error = new Error();
-        error.statusCode = 422;
-        error.message = "Invalid username/email or password";
-
-        throw error;
+        error(422, "Invalid username/email or password");
       }
     } else {
       // Check if user exists against username
       user = await User.findOne({ userName: userLogin });
 
       if (!user) {
-        const error = new Error();
-        error.statusCode = 422;
-        error.message = "Invalid username/email or password";
-
-        throw error;
+        error(422, "Invalid username/email or password");
       }
     }
 
@@ -342,22 +305,14 @@ module.exports.postPasswordReset = async (req, res, next) => {
     const hasErrors = !result.isEmpty();
 
     if (hasErrors) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = result.errors[0].msg;
-
-      throw error;
+      error(422, result.errors[0].msg);
     }
 
     // Check if email exists in databse
     const userExists = await User.findOne({ email });
 
     if (!userExists) {
-      const error = new Error();
-      error.statusCode = 404;
-      error.message = "No account found with that email";
-
-      throw error;
+      error(404, "No account found with that email");
     }
 
     // Continue if there are no errors
@@ -408,11 +363,7 @@ module.exports.getPasswordReset = async (req, res, next) => {
 
     // Check if user is found
     if (!user) {
-      const error = new Error();
-      error.statusCode = 401;
-      error.message = "Invalid reset token";
-
-      throw error;
+      error(401, "Invalid reset token");
     }
 
     // Check if token is expired
@@ -423,11 +374,7 @@ module.exports.getPasswordReset = async (req, res, next) => {
 
       await user.save();
 
-      const error = new Error();
-      error.statusCode = 401;
-      error.message = "Password reset session has expired";
-
-      throw error;
+      error(401, "Password reset session has expired");
     }
 
     res.status(200).json({ status: 200 });
@@ -449,22 +396,14 @@ module.exports.postPasswordChange = async (req, res, next) => {
     const hasErrors = !result.isEmpty();
 
     if (hasErrors) {
-      const error = new Error();
-      error.statusCode = 422;
-      error.message = result.errors[0].msg;
-
-      throw error;
+      error(422, result.errors[0].msg);
     }
 
     // Get user
     const user = await User.findOne({ pwResetToken: token });
 
     if (!user) {
-      const error = new Error();
-      error.statusCode = 401;
-      error.message = "Invalid reset token";
-
-      throw error;
+      error(401, "Invalid reset token");
     }
 
     // Encrypt new password

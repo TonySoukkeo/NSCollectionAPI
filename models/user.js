@@ -23,11 +23,15 @@ const userSchema = new Schema(
       type: String,
       required: true
     },
-    gameCollection: {
-      required: true,
-      type: Array,
-      default: []
-    },
+    gameCollection: [
+      {
+        gameId: {
+          type: Schema.Types.ObjectId,
+          required: true,
+          ref: "Game"
+        }
+      }
+    ],
     wishList: {
       required: true,
       type: Array,

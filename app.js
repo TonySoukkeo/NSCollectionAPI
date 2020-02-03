@@ -13,6 +13,7 @@ const isAuth = require("./util/isAuth");
 const scraperRoutes = require("./routes/scraper");
 const authRoutes = require("./routes/auth");
 const gameRoutes = require("./routes/games");
+const userRoutes = require("./routes/user");
 
 const app = express();
 
@@ -48,6 +49,8 @@ app.use("/update", scraperRoutes);
 app.use("/auth", authRoutes);
 
 app.use("/games", gameRoutes);
+
+app.use("/user", userRoutes);
 
 /**************
  ERROR HANDLING 

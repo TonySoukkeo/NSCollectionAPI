@@ -3,6 +3,9 @@ const Games = require("../models/games");
 const NewReleases = require("../models/newReleases");
 const ComingSoon = require("../models/comingSoon");
 
+// Helper functions
+const { error } = require("../util/errorHandling");
+
 /*****************
   SEARCH FOR GAME
  *****************/
@@ -314,11 +317,7 @@ module.exports.getGame = async (req, res, next) => {
     const game = await Games.findOne({ _id: gameId });
 
     if (!game) {
-      const error = new Error();
-      error.statusCode = 404;
-      error.message = "Game not found";
-
-      throw error;
+      error(404, "Game not found");
     }
 
     res.status(200).json(game);
