@@ -56,6 +56,26 @@ const userSchema = new Schema(
       type: Boolean,
       default: false
     },
+    notifications: [
+      {
+        message: {
+          type: String,
+          required: true
+        },
+        gameId: {
+          type: Schema.Types.ObjectId,
+          ref: "Game"
+        },
+        userId: {
+          type: Schema.Types.ObjectId,
+          ref: "User"
+        },
+        notifyType: {
+          type: String,
+          required: true
+        }
+      }
+    ],
     pwResetToken: String,
     pwResetExpiration: Date
   },

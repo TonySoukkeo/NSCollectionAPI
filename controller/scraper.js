@@ -12,39 +12,45 @@ const { getGames, getGameDetails } = require("../util/scraper");
  GET GAME BY URL
  ****************/
 module.exports.getGameByUrl = async (req, res, next) => {
-  const gameDetails = await getGameDetails(
-    "https://www.nintendo.com/games/detail/cat-quest-switch/",
-    "fill in"
-  );
+  try {
+    const gameDetails = await getGameDetails(
+      "https://www.nintendo.com/games/detail/cat-quest-switch/",
+      "fill in"
+    );
 
-  const game = new GamesDb(gameDetails);
+    const game = new GamesDb(gameDetails);
 
-  await game.save();
-  res.status(200).json(gameDetails);
+    await game.save();
+    res.status(200).json(gameDetails);
+  } catch (err) {
+    next(err);
+  }
 };
 
 /******************************
  CHECK FOR ANY DUPLICATE GAMES
  ******************************/
 module.exports.checkForDuplicates = async (req, res, next) => {
-  // const allGames = await GamesDb.find({});
-
-  const duplicates = await GamesDb.aggregate([
-    {
-      $group: {
-        _id: { title: "$title" },
-        uniqueIds: { $addToSet: "$_id" },
-        count: { $sum: 1 }
+  try {
+    const duplicates = await GamesDb.aggregate([
+      {
+        $group: {
+          _id: { title: "$title" },
+          uniqueIds: { $addToSet: "$_id" },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $match: {
+          count: { $gte: 2 }
+        }
       }
-    },
-    {
-      $match: {
-        count: { $gte: 2 }
-      }
-    }
-  ]);
+    ]);
 
-  res.status(200).json(duplicates);
+    res.status(200).json(duplicates);
+  } catch (err) {
+    next(err);
+  }
 };
 
 /***************************
@@ -127,94 +133,102 @@ const getSaleGames = async () => {
  GET DLC FOR GAMES
  ******************/
 const getDlc = async () => {
-  const dlcGames = await getGames("dlc");
+  try {
+    const dlcGames = await getGames("dlc");
 
-  const dlcDb = await DlcDb.find({});
+    const dlcDb = await DlcDb.find({});
 
-  // Only Run if the length of each array is different or the first title of the array is different
-  if (
-    dlcGames.length !== dlcDb.length ||
-    dlcGames[0].title !== dlcDb[0].title
-  ) {
-    for (let i = 0; i < dlcGames.length; i++) {
-      const found = await GamesDb.findOne({ title: dlcGames[i].title });
-      if (found && found.dlc.length !== 0) {
-        continue;
-      } else if (!found) {
-        const gameDetails = await getGameDetails(dlcGames[i].url);
+    // Only Run if the length of each array is different or the first title of the array is different
+    if (
+      dlcGames.length !== dlcDb.length ||
+      dlcGames[0].title !== dlcDb[0].title
+    ) {
+      for (let i = 0; i < dlcGames.length; i++) {
+        const found = await GamesDb.findOne({ title: dlcGames[i].title });
+        if (found && found.dlc.length !== 0) {
+          continue;
+        } else if (!found) {
+          const gameDetails = await getGameDetails(dlcGames[i].url);
 
-        const gameDb = new GamesDb(gameDetails);
+          const gameDb = new GamesDb(gameDetails);
 
-        gameDb.title = dlcGames[i].title;
+          gameDb.title = dlcGames[i].title;
 
-        await gameDb.save();
-      } else {
-        const gameDetails = await getGameDetails(dlcGames[i].url);
+          await gameDb.save();
+        } else {
+          const gameDetails = await getGameDetails(dlcGames[i].url);
 
-        found.dlc = gameDetails.dlc;
+          found.dlc = gameDetails.dlc;
 
-        await found.save();
+          await found.save();
+        }
       }
+
+      // Reset dlc games in DlcDb
+      await DlcDb.deleteMany({});
+
+      await DlcDb.insertMany(dlcGames, (err, docs) => {
+        if (err) {
+          return console.log(err);
+        } else {
+          console.log("Dlc games updated");
+        }
+      });
     }
 
-    // Reset dlc games in DlcDb
-    await DlcDb.deleteMany({});
-
-    await DlcDb.insertMany(dlcGames, (err, docs) => {
-      if (err) {
-        return console.log(err);
-      } else {
-        console.log("Dlc games updated");
-      }
-    });
+    console.log("dlc games updated");
+  } catch (err) {
+    throw err;
   }
-
-  console.log("dlc games updated");
 };
 
 /*********************
  GET COMING SOON GAMES
  *********************/
 const getComingSoon = async () => {
-  const comingSoonGames = await getGames("coming soon");
+  try {
+    const comingSoonGames = await getGames("coming soon");
 
-  const currentComingSoonDb = await ComingSoonDb.find({});
+    const currentComingSoonDb = await ComingSoonDb.find({});
 
-  if (
-    currentComingSoonDb.length === 0 ||
-    currentComingSoonDb[0].title !== comingSoonGames[0].title ||
-    currentComingSoonDb.length !== comingSoonGames.length
-  ) {
-    for (let i = 0; i < comingSoonGames.length; i++) {
-      // Check if game isn't already in main database
-      const found = await GamesDb.findOne({
-        title: comingSoonGames[i].title
+    if (
+      currentComingSoonDb.length === 0 ||
+      currentComingSoonDb[0].title !== comingSoonGames[0].title ||
+      currentComingSoonDb.length !== comingSoonGames.length
+    ) {
+      for (let i = 0; i < comingSoonGames.length; i++) {
+        // Check if game isn't already in main database
+        const found = await GamesDb.findOne({
+          title: comingSoonGames[i].title
+        });
+
+        if (!found) {
+          const gameDetails = await getGameDetails(
+            comingSoonGames[i].url,
+            "coming soon"
+          );
+
+          const gamesDb = new GamesDb(gameDetails);
+          gamesDb.title = comingSoonGames[i].title;
+          await gamesDb.save();
+        }
+      }
+
+      // Reset coming soon db
+      // Delete all documents from new games collection
+      await ComingSoonDb.deleteMany({});
+
+      // Insert new array of new games to collection
+      await ComingSoonDb.insertMany(comingSoonGames, (err, docs) => {
+        if (err) {
+          return console.log(err);
+        } else {
+          console.log("Sucessfully updated");
+        }
       });
-
-      if (!found) {
-        const gameDetails = await getGameDetails(
-          comingSoonGames[i].url,
-          "coming soon"
-        );
-
-        const gamesDb = new GamesDb(gameDetails);
-        gamesDb.title = comingSoonGames[i].title;
-        await gamesDb.save();
-      }
     }
-
-    // Reset coming soon db
-    // Delete all documents from new games collection
-    await ComingSoonDb.deleteMany({});
-
-    // Insert new array of new games to collection
-    await ComingSoonDb.insertMany(comingSoonGames, (err, docs) => {
-      if (err) {
-        return console.log(err);
-      } else {
-        console.log("Sucessfully updated");
-      }
-    });
+  } catch (err) {
+    throw err;
   }
 };
 
@@ -222,93 +236,105 @@ const getComingSoon = async () => {
  GET GAMES WITH DEMOS
  *********************/
 const getGamesWithDemos = async () => {
-  const gameDemos = await getGames("demo");
+  try {
+    const gameDemos = await getGames("demo");
 
-  const demoDb = await GamesDb.find({ demo: true });
+    const demoDb = await GamesDb.find({ demo: true });
 
-  if (gameDemos.length !== demoDb.length) {
-    for (let i = 0; i < gameDemos.length; i++) {
-      const found = await GamesDb.findOne({
-        title: gameDemos[i].title
-      });
+    if (gameDemos.length !== demoDb.length) {
+      for (let i = 0; i < gameDemos.length; i++) {
+        const found = await GamesDb.findOne({
+          title: gameDemos[i].title
+        });
 
-      if (!found) {
-        const gameDetails = await getGameDetails(gameDemos[i].url, "demo");
-        gameDetails.title = gameDemos[i].title;
+        if (!found) {
+          const gameDetails = await getGameDetails(gameDemos[i].url, "demo");
+          gameDetails.title = gameDemos[i].title;
 
-        const game = new GamesDb(gameDetails);
+          const game = new GamesDb(gameDetails);
 
-        await game.save();
-      } else {
-        found.demo = true;
-        await found.save();
+          await game.save();
+        } else {
+          found.demo = true;
+          await found.save();
+        }
       }
     }
-  }
 
-  console.log("Updated Games with Demos");
+    console.log("Updated Games with Demos");
+  } catch (err) {
+    throw err;
+  }
 };
 
 /******************************
  GET / UPDATE NEW GAME RELEASES
  ******************************/
 const getNewReleases = async () => {
-  // New releases from NS website
-  const newRelease = await getGames("new release");
+  try {
+    // New releases from NS website
+    const newRelease = await getGames("new release");
 
-  // New releases from current database
-  const currentDb = await newReleasesDb.find({});
+    // New releases from current database
+    const currentDb = await newReleasesDb.find({});
 
-  /*******************************************************************
+    /*******************************************************************
     Loop through newRelease gameId and  check against games collection to see if there is a document with the current ID, if not create new collection.
   ********************************************************************/
-  if (currentDb.length === 0 || currentDb[0].title !== newRelease[0].title) {
-    for (let i = 0; i < newRelease.length; i++) {
-      const found = await GamesDb.findOne({
-        title: newRelease[i].title
-      });
+    if (currentDb.length === 0 || currentDb[0].title !== newRelease[0].title) {
+      for (let i = 0; i < newRelease.length; i++) {
+        const found = await GamesDb.findOne({
+          title: newRelease[i].title
+        });
 
-      if (!found) {
-        // Scrape for specific game detail
-        const gameDetails = await getGameDetails(newRelease[i].url);
+        if (!found) {
+          // Scrape for specific game detail
+          const gameDetails = await getGameDetails(newRelease[i].url);
 
-        gameDetails.price = newRelease[i].price;
-        gameDetails.title = newRelease[i].title;
+          gameDetails.price = newRelease[i].price;
+          gameDetails.title = newRelease[i].title;
 
-        const gamesDb = new GamesDb(gameDetails);
-        await gamesDb.save();
+          const gamesDb = new GamesDb(gameDetails);
+          await gamesDb.save();
+        }
       }
-    }
 
-    /******************************************************************
+      /******************************************************************
      RESET NEW RELEASE COLLECTION ONLY IF NEW GAMES ARRAY IS NOT EMPTY OR IF THE FIRST INDEX FROM NEW RELEASE IS DIFFERENT FROM THE FIRST INDEX OF THE CURRENT DATABASE.
     ******************************************************************/
 
-    // Delete all documents from new games collection
-    await newReleasesDb.deleteMany({});
+      // Delete all documents from new games collection
+      await newReleasesDb.deleteMany({});
 
-    // Insert new array of new games to collection
-    await newReleasesDb.insertMany(newRelease, (err, docs) => {
-      if (err) {
-        return console.log(err);
-      } else {
-        console.log("Sucessfully updated");
-      }
-    });
+      // Insert new array of new games to collection
+      await newReleasesDb.insertMany(newRelease, (err, docs) => {
+        if (err) {
+          return console.log(err);
+        } else {
+          console.log("Sucessfully updated");
+        }
+      });
+    }
+
+    console.log("Sucesfullly updated new game releases");
+  } catch (err) {
+    throw err;
   }
-
-  console.log("Sucesfullly updated new game releases");
 };
 
 const runAll = async (req, res, next) => {
-  await getDlc();
-  await getComingSoon();
-  await getGamesWithDemos();
-  await getNewReleases();
-  await getSaleGames();
+  try {
+    await getDlc();
+    await getComingSoon();
+    await getGamesWithDemos();
+    await getNewReleases();
+    await getSaleGames();
 
-  console.log("Data base updated");
-  res.status(200).json("DB Updated");
+    console.log("Data base updated");
+    res.status(200).json("DB Updated");
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.runAll = runAll;
