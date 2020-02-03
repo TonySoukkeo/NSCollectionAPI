@@ -32,11 +32,15 @@ const userSchema = new Schema(
         }
       }
     ],
-    wishList: {
-      required: true,
-      type: Array,
-      default: []
-    },
+    wishList: [
+      {
+        gameId: {
+          type: Schema.Types.ObjectId,
+          required: true,
+          ref: "Game"
+        }
+      }
+    ],
     following: {
       required: true,
       type: Array,

@@ -7,21 +7,26 @@ const userControllers = require("../controller/user");
 /***************************
  GET USER'S GAME COLLECTION
  ***************************/
-router.post("/collection", userControllers.getGameCollection);
+router.post("/get-collection", userControllers.getGameCollection);
 
 /**********************************
  ADD GAME TO USER'S GAME COLLECTION
  **********************************/
-router.post("/collection-add", userControllers.postAddToCollection);
+router.post("/collection", userControllers.postAddToCollection);
 
 /***************************************
  DELETE GAME FROM USER'S GAME COLLECTION 
  ***************************************/
-router.delete("/collection-delete", userControllers.deleteGameFromCollection);
+router.delete("/collection", userControllers.deleteGameFromCollection);
 
 /*********************
  ADD GAME TO WISHLIST
  *********************/
-router.post("/wishlist-add", userControllers.postAddGameToWishlist);
+router.post("/wishlist", userControllers.postAddGameToWishlist);
+
+/*************************
+ DELETE GAME FROM WISHLIST
+ *************************/
+router.delete("/wishlist", userControllers.deleteGameFromWishlist);
 
 module.exports = router;

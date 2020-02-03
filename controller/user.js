@@ -125,7 +125,7 @@ module.exports.postAddToCollection = async (req, res, next) => {
 
     if (existsInWishlist) {
       // Delete game from wishlist
-      await user.update({ $pull: { wishList: gameId } });
+      await user.update({ $pull: { wishList: { gameId } } });
     }
 
     res.status(201).json({
@@ -144,7 +144,7 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
   try {
     const userId = req.userId;
     const isAuth = req.isAuth;
-    const gameId = req.body.gameId;
+    const gameId = req.query.gameId;
 
     // Check if user is authenticated
     if (!isAuth) {
@@ -184,7 +184,7 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
     // Continue if there are no errors
 
     // delete game from user game collection
-    await user.update({ $pull: { gameCollection: gameId } });
+    await user.update({ $pull: { gameCollection: { gameId } } });
 
     res.status(200).json("Game removed from collection");
   } catch (err) {
@@ -197,16 +197,111 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
  ***************************/
 module.exports.postAddGameToWishlist = async (req, res, next) => {
   try {
-    // Do stuff
     const isAuth = req.isAuth;
     const userId = req.userId;
+
+    const gameId = req.query.gameId;
 
     // Check if user is authenticated
     if (!isAuth) {
       error(401, "You must be signed in to add games to your wishlist");
     }
 
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "wishList gameCollection");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Check if game exists
+    const gameExists = await Games.findOne({ _id: gameId }, "title");
+
+    if (!gameExists) {
+      error(404, "Invalid game id");
+    }
+
+    // Check if game already exists in user's wishlist
+    let existsInWishList = false;
+
+    user.wishList.forEach(game => {
+      if (game.gameId.toString() === gameId) existsInWishList = true;
+    });
+
+    if (existsInWishList) {
+      error(422, "Game is already in wishlist");
+    }
+
+    // Check if game exists in user's game collection
+    let existsInGameCollection = false;
+
+    user.gameCollection.forEach(game => {
+      if (game.gameId.toString() === gameId) {
+        existsInGameCollection = true;
+      }
+    });
+
+    if (existsInGameCollection) {
+      error(422, "You already own this game");
+    }
+
+    // Continue if there are no errors
+
+    // Add game to user's wishlist
+    await user.update({ $push: { wishList: { gameId: gameId } } });
+
     res.status(201).json("Game added to wishlist");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/******************************
+ DELETE GAME TO USER'S WISHLIST
+ ******************************/
+module.exports.deleteGameFromWishlist = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    const gameId = req.query.gameId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "Must be logged in to delete game from your wishlist");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "wishList");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Check if game exists
+    const game = await Games.findOne({ _id: gameId }, "title");
+
+    if (!game) {
+      error(404, "Game not found");
+    }
+
+    // Check if game exists in wishlist
+    let existsInWishList = false;
+
+    user.wishList.forEach(game => {
+      if (game.gameId.toString() === gameId) existsInWishList = true;
+    });
+
+    if (!existsInWishList) {
+      error(422, "Game does not exists in your wishlist");
+    }
+
+    // Continue if there are no errors
+
+    // Remove game from user's wishlist
+    await user.update({ $pull: { wishList: { gameId } } });
+
+    res.status(200).json("Game removed from your wishlist");
   } catch (err) {
     next(err);
   }
