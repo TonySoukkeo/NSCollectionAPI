@@ -91,7 +91,7 @@ module.exports.postAddToCollection = async (req, res, next) => {
     }
 
     // Check if game exists
-    const game = await Games.findOne({ _id: gameId }, "title");
+    const game = await Games.findOne({ _id: gameId }, "title ownedBy wantedBy");
 
     if (!game) {
       error(404, "Invalid Game Id");
@@ -126,6 +126,21 @@ module.exports.postAddToCollection = async (req, res, next) => {
     if (existsInWishlist) {
       // Delete game from wishlist
       await user.update({ $pull: { wishList: { gameId } } });
+
+      // Delete game from game collection wantedBy
+      await game.update({ $pull: { wantedBy: { user: user._id } } });
+    }
+
+    // Check game collection ownedBy array to see if user is already included
+    let alreadyOwned = false;
+
+    game.ownedBy.forEach(el => {
+      if (el.user.toString() === user._id.toString()) alreadyOwned = true;
+    });
+
+    if (!alreadyOwned) {
+      // Add user to ownedBy in Game collection
+      await game.update({ $push: { ownedBy: { user: user._id } } });
     }
 
     res.status(201).json({
@@ -166,6 +181,13 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
       error(401, "Need email verification");
     }
 
+    // Check to see if valid gameId
+    const game = await Games.findOne({ _id: gameId }, "title ownedBy");
+
+    if (!game) {
+      error(404, "Invalid Game Id");
+    }
+
     // Check to see if game exists in user's game collection
     const gameCollection = user.gameCollection;
 
@@ -185,6 +207,9 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
 
     // delete game from user game collection
     await user.update({ $pull: { gameCollection: { gameId } } });
+
+    // Remove user from ownedBy array in Game collection
+    await game.update({ $pull: { ownedBy: { user: user._id } } });
 
     res.status(200).json("Game removed from collection");
   } catch (err) {
@@ -215,9 +240,9 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
     }
 
     // Check if game exists
-    const gameExists = await Games.findOne({ _id: gameId }, "title");
+    const game = await Games.findOne({ _id: gameId }, "title wantedBy");
 
-    if (!gameExists) {
+    if (!game) {
       error(404, "Invalid game id");
     }
 
@@ -247,8 +272,21 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
 
     // Continue if there are no errors
 
-    // Add game to user's wishlist
-    await user.update({ $push: { wishList: { gameId: gameId } } });
+    // Add user to game's collection wanted array
+    // Check if user is already included in wantedBy array
+    let existsInWantedBy = false;
+
+    game.wantedBy.forEach(el => {
+      if (el.user.toString() === user._id.toString()) existsInWantedBy = true;
+    });
+
+    if (!existsInWantedBy) {
+      // Add user to wantedBy array
+      await game.update({ $push: { wantedBy: { user: user._id } } });
+    }
+
+    // Add game to users wishlist
+    await user.update({ $push: { wishList: { gameId: game._id } } });
 
     res.status(201).json("Game added to wishlist");
   } catch (err) {
@@ -256,9 +294,9 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
   }
 };
 
-/******************************
- DELETE GAME TO USER'S WISHLIST
- ******************************/
+/********************************
+ DELETE GAME FROM USER'S WISHLIST
+ ********************************/
 module.exports.deleteGameFromWishlist = async (req, res, next) => {
   try {
     const isAuth = req.isAuth;
@@ -279,7 +317,7 @@ module.exports.deleteGameFromWishlist = async (req, res, next) => {
     }
 
     // Check if game exists
-    const game = await Games.findOne({ _id: gameId }, "title");
+    const game = await Games.findOne({ _id: gameId }, "title wantedBy");
 
     if (!game) {
       error(404, "Game not found");
@@ -297,6 +335,9 @@ module.exports.deleteGameFromWishlist = async (req, res, next) => {
     }
 
     // Continue if there are no errors
+
+    // Remove user from wantedBy array in game collection
+    await game.update({ $pull: { wantedBy: { user: user._id } } });
 
     // Remove game from user's wishlist
     await user.update({ $pull: { wishList: { gameId } } });

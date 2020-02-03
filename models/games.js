@@ -41,6 +41,24 @@ const gamesSchema = new Schema({
     type: String,
     required: true
   },
+  ownedBy: [
+    {
+      user: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: "User"
+      }
+    }
+  ],
+  wantedBy: [
+    {
+      user: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: "User"
+      }
+    }
+  ],
   demo: Boolean,
   onlinePlay: Boolean,
   cloudSave: Boolean,
