@@ -98,7 +98,7 @@ module.exports.register = async (req, res, next) => {
             // Send verification email
             client.sendMail({
               to: email,
-              from: "admin@nscollection.com",
+              from: process.env.SENDGRID_SENDER,
               subject: "Confirm your email",
               html: `
             <h4>Click the following link to verify your email address</h4>

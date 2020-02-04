@@ -1,9 +1,26 @@
+const dotenv = require("dotenv");
+const nodemailer = require("nodemailer");
+const sgTransport = require("nodemailer-sendgrid-transport");
+
+// Sendgrid configuration
+const options = {
+  auth: {
+    api_user: process.env.SENDGRID_USER,
+    api_key: process.env.SENDGRID_KEY
+  }
+};
+
+const client = nodemailer.createTransport(sgTransport(options));
+
+dotenv.config();
+
 // Models
 const newReleasesDb = require("../models/newReleases");
 const GamesDb = require("../models/games");
 const ComingSoonDb = require("../models/comingSoon");
 const DlcDb = require("../models/dlc");
 const SaleDb = require("../models/saleGames");
+const User = require("../models/user");
 
 // Utilities
 const { getGames, getGameDetails } = require("../util/scraper");
@@ -58,10 +75,7 @@ module.exports.checkForDuplicates = async (req, res, next) => {
  ***************************/
 const getSaleGames = async () => {
   const saleGames = await getGames("sale");
-
   const saleGamesDb = await SaleDb.find({});
-
-  const notOnSale = [];
 
   // Check for games that are not on sale anymore
   const games = await GamesDb.find({ salePrice: { $exists: true } });
@@ -90,9 +104,41 @@ const getSaleGames = async () => {
       });
     }
 
+    // Hash table with all users that needs notifications sent
+    const userHash = {};
+
     // Loop through all games that are on sale and update the price for each title on GamesDb
     for (let i = 0; i < saleGames.length; i++) {
       const found = await GamesDb.findOne({ title: saleGames[i].title });
+
+      // Get all users to send sale notifications out with any saleGames title that are on their wishlist
+      const users = await User.find(
+        { "wishList.title": saleGames[i].title },
+        "title wishList email allowEmail notifications"
+      );
+
+      if (users.length >= 1) {
+        users.forEach(user => {
+          const userId = user._id.toString();
+
+          if (!userHash[userId]) {
+            userHash[userId] = {
+              email: user.email,
+              allowEmail: user.allowEmail,
+              games: [
+                { title: saleGames[i].title, salePrice: saleGames[i].salePrice }
+              ]
+            };
+          } else {
+            userHash[userId].games.push({
+              title: saleGames[i].title,
+              salePrice: saleGames[i]
+            });
+          }
+        });
+      }
+
+      let newGameEntry;
 
       // If sale game isn't found on GamesDb, create a new document for that game
       if (!found) {
@@ -101,9 +147,9 @@ const getSaleGames = async () => {
         gameDetails.salePrice = saleGames[i].salePrice;
         gameDetails.title = saleGames[i].title;
 
-        const game = new GamesDb(gameDetails);
+        newGameEntry = new GamesDb(gameDetails);
 
-        await game.save();
+        await newGameEntry.save();
       } else {
         // If game exists on both salegames and GamesDb, update its sale price
         await GamesDb.updateOne(
@@ -116,7 +162,65 @@ const getSaleGames = async () => {
       }
     }
 
-    // Reset / Update saleGamesDb
+    const userHashArr = Object.values(userHash);
+
+    /*************************************
+      SEND OUT EMAIL NOTIFICATIONS TO USERS
+     *************************************/
+    for (let i = 0; i < userHashArr.length; i++) {
+      const user = userHashArr[i];
+      const email = user.email;
+      const gameAmount = user.games.length;
+
+      // Check if user allows email updates
+      if (user.allowEmail) {
+        client.sendMail({
+          to: email,
+          from: process.env.SENDGRID_SENDER,
+          subject: "Your games are on sale!",
+          html: `
+        <h1>You have ${gameAmount} ${
+            gameAmount > 1 ? "games" : "game"
+          } that are currently on sale!</h1>
+        <p>
+        <ul>
+         ${user.games.map(
+           game =>
+             `<li>
+             ${game.title} -- <em>${game.salePrice}</em>
+           </li>`
+         )}
+        </ul>
+        `
+        });
+      }
+    }
+
+    // Loop through user.games array to send notifications out to user
+    for (let j = 0; j < user.games.length; j++) {
+      const title = user.games[j].title;
+
+      // Send notification out to user
+      const notifyUser = await User.findOne({ email }, "notifications");
+
+      const gameId = await GamesDb.findOne({ title }, "title");
+
+      const notificationDetails = {
+        message: `${gameId.title} is on sale!`,
+        gameId: gameId._id,
+        notifyType: "SALE"
+      };
+
+      if (notifyUser && gameId) {
+        await notifyUser.update({
+          $push: { notifications: notificationDetails }
+        });
+      }
+    }
+
+    /**************************
+     RESET / UPDATE SALEGAMESDB
+     **************************/
     if (saleGamesDb.length !== 0) {
       await SaleDb.deleteMany({});
       await SaleDb.insertMany(saleGames, (err, docs) => {
@@ -324,10 +428,10 @@ const getNewReleases = async () => {
 
 const runAll = async (req, res, next) => {
   try {
-    await getDlc();
-    await getComingSoon();
-    await getGamesWithDemos();
-    await getNewReleases();
+    // await getDlc();
+    // await getComingSoon();
+    // await getGamesWithDemos();
+    // await getNewReleases();
     await getSaleGames();
 
     console.log("Data base updated");

@@ -29,6 +29,10 @@ const userSchema = new Schema(
           type: Schema.Types.ObjectId,
           required: true,
           ref: "Game"
+        },
+        title: {
+          type: String,
+          required: true
         }
       }
     ],
@@ -38,6 +42,28 @@ const userSchema = new Schema(
           type: Schema.Types.ObjectId,
           required: true,
           ref: "Game"
+        },
+        title: {
+          type: String,
+          required: true
+        }
+      }
+    ],
+    saleWatch: [
+      {
+        gameId: {
+          type: Schema.Types.ObjectId,
+          ref: "Game",
+          required: true
+        },
+        title: {
+          type: String,
+          required: true
+        },
+        sent: {
+          type: Boolean,
+          required: true,
+          default: false
         }
       }
     ],
@@ -76,6 +102,11 @@ const userSchema = new Schema(
         }
       }
     ],
+    allowEmail: {
+      type: Boolean,
+      required: true,
+      default: false
+    },
     pwResetToken: String,
     pwResetExpiration: Date
   },

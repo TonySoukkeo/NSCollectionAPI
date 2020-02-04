@@ -113,7 +113,9 @@ module.exports.postAddToCollection = async (req, res, next) => {
     // Continue if there are no errors
 
     // Add game to user's gameCollection
-    await user.update({ $push: { gameCollection: { gameId: game._id } } });
+    await user.update({
+      $push: { gameCollection: { gameId: game._id, title: game.title } }
+    });
 
     // Check if game exists in user's wishlist
     // If so, delete that game from their wishlist
@@ -286,7 +288,9 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
     }
 
     // Add game to users wishlist
-    await user.update({ $push: { wishList: { gameId: game._id } } });
+    await user.update({
+      $push: { wishList: { gameId: game._id, title: game.title } }
+    });
 
     res.status(201).json("Game added to wishlist");
   } catch (err) {
@@ -343,6 +347,67 @@ module.exports.deleteGameFromWishlist = async (req, res, next) => {
     await user.update({ $pull: { wishList: { gameId } } });
 
     res.status(200).json("Game removed from your wishlist");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/***************************
+ ADD GAME TO SALE WATCH LIST
+ ****************************/
+module.exports.addToSaleWatch = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    const gameId = req.query.gameId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(
+        404,
+        "You need to be logged in to add a game to your sale watch list"
+      );
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "saleWatch email");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Check if game exists
+    const game = await Games.findOne({ _id: gameId }, "title price salePrice");
+
+    if (!game) {
+      error(404, "Invalid Game Id");
+    }
+
+    // check to see if game is already on sale
+    if (game.salePrice) {
+      error(400, "Unable to add a game that is currently on sale");
+    }
+
+    // Check if game isn't already in user's sale watch list
+    let gameExists = false;
+
+    user.saleWatch.forEach(item => {
+      if (item.gameId.toString() === game._id.toString()) {
+        gameExists = true;
+      }
+    });
+
+    if (gameExists) {
+      error(422, "You are already tracking this game");
+    }
+
+    // Add game to user's saleWatch list
+    await user.update({
+      $push: { saleWatch: { gameId: game._id, title: game.title } }
+    });
+
+    // Continue if there are no errors
   } catch (err) {
     next(err);
   }
