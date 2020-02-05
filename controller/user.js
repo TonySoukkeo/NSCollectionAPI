@@ -113,7 +113,7 @@ module.exports.postAddToCollection = async (req, res, next) => {
     // Continue if there are no errors
 
     // Add game to user's gameCollection
-    await user.update({
+    await user.updateOne({
       $push: { gameCollection: { gameId: game._id, title: game.title } }
     });
 
@@ -127,10 +127,10 @@ module.exports.postAddToCollection = async (req, res, next) => {
 
     if (existsInWishlist) {
       // Delete game from wishlist
-      await user.update({ $pull: { wishList: { gameId } } });
+      await user.updateOne({ $pull: { wishList: { gameId } } });
 
       // Delete game from game collection wantedBy
-      await game.update({ $pull: { wantedBy: { user: user._id } } });
+      await game.updateOne({ $pull: { wantedBy: { user: user._id } } });
     }
 
     // Check game collection ownedBy array to see if user is already included
@@ -142,7 +142,7 @@ module.exports.postAddToCollection = async (req, res, next) => {
 
     if (!alreadyOwned) {
       // Add user to ownedBy in Game collection
-      await game.update({ $push: { ownedBy: { user: user._id } } });
+      await game.updateOne({ $push: { ownedBy: { user: user._id } } });
     }
 
     res.status(201).json({
@@ -208,12 +208,37 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
     // Continue if there are no errors
 
     // delete game from user game collection
-    await user.update({ $pull: { gameCollection: { gameId } } });
+    await user.updateOne({ $pull: { gameCollection: { gameId } } });
 
     // Remove user from ownedBy array in Game collection
-    await game.update({ $pull: { ownedBy: { user: user._id } } });
+    await game.updateOne({ $pull: { ownedBy: { user: user._id } } });
 
     res.status(200).json("Game removed from collection");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/*****************
+ GET USER WISHLIST
+ *****************/
+module.exports.getUserWishList = async (req, res, next) => {
+  try {
+    const userId = req.query.userId;
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "wishList").populate(
+      "wishList.gameId",
+      "image title price salePrice"
+    );
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    const wishList = user.wishList.map(game => game.gameId);
+
+    res.status(200).json(wishList);
   } catch (err) {
     next(err);
   }
@@ -284,11 +309,11 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
 
     if (!existsInWantedBy) {
       // Add user to wantedBy array
-      await game.update({ $push: { wantedBy: { user: user._id } } });
+      await game.updateOne({ $push: { wantedBy: { user: user._id } } });
     }
 
     // Add game to users wishlist
-    await user.update({
+    await user.updateOne({
       $push: { wishList: { gameId: game._id, title: game.title } }
     });
 
@@ -341,12 +366,37 @@ module.exports.deleteGameFromWishlist = async (req, res, next) => {
     // Continue if there are no errors
 
     // Remove user from wantedBy array in game collection
-    await game.update({ $pull: { wantedBy: { user: user._id } } });
+    await game.updateOne({ $pull: { wantedBy: { user: user._id } } });
 
     // Remove game from user's wishlist
-    await user.update({ $pull: { wishList: { gameId } } });
+    await user.updateOne({ $pull: { wishList: { gameId } } });
 
     res.status(200).json("Game removed from your wishlist");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/************************
+ GET USER SALE WATCH LIST
+ ************************/
+module.exports.getUserSaleWatch = async (req, res, next) => {
+  try {
+    const userId = req.query.userId;
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "saleWatch").populate(
+      "saleWatch.gameId",
+      "title image price salePrice"
+    );
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    const saleWatch = user.saleWatch.map(game => game.gameId);
+
+    res.status(200).json(saleWatch);
   } catch (err) {
     next(err);
   }
@@ -402,12 +452,167 @@ module.exports.addToSaleWatch = async (req, res, next) => {
       error(422, "You are already tracking this game");
     }
 
+    // Continue if there are no errors
+
     // Add game to user's saleWatch list
-    await user.update({
+    await user.updateOne({
       $push: { saleWatch: { gameId: game._id, title: game.title } }
     });
 
+    res.status(200).json("Game has been added to your watchlist");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/***************************
+ DELETE GAME FROM SALE WATCH
+ ****************************/
+module.exports.deleteGameFromSaleWatch = async (req, res, next) => {
+  try {
+    const gameId = req.query.gameId;
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to remove a game from your list");
+    }
+
+    // Check if user and game exists
+    const user = await User.findOne({ _id: userId }, "saleWatch");
+    const game = await Games.findOne({ _id: gameId }, "title");
+
+    if (!user) {
+      error(404, "User not found");
+    } else if (!game) {
+      error(422, "Invalid Game Id");
+    }
+
+    // Check if game exists in user's list
+    let existsInSaleWatch = false;
+
+    user.saleWatch.forEach(game => {
+      if (game.gameId.toString() === gameId) existsInSaleWatch = true;
+    });
+
+    if (!existsInSaleWatch) {
+      error(422, "Game does not exists in your list");
+    }
+
     // Continue if there are no errors
+
+    // Remove game from user's saleWatch list
+    await user.updateOne({ $pull: { saleWatch: { gameId } } });
+
+    res.status(200).json("Game has been removed from your watch list");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/************************
+ GET USER'S NOTIFICATION
+ ************************/
+module.exports.getNotifications = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const isAuth = req.isAuth;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to check your notifications");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "notifications", {
+      "notifications.messages": { $slice: 5 }
+    });
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Continue if there are no errors
+
+    // Reset count for notifications
+    await user.updateOne({ "notifications.count": 0 });
+
+    // Extract notifications messages from user
+    const notifications = user.notifications.messages;
+
+    res.status(200).json(notifications);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**************************
+ GET ALL USER NOTIFICATIONS
+ **************************/
+module.exports.getAllNotifications = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    const page = req.query.page || 1;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to check notifications");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "notifications.messages");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Set up pagination
+
+    // Get total count of messages
+    const NUM_OF_ITEMS_ON_PAGE = 20;
+    const totalMessages = user.notifications.messages.length;
+    const messages = user.notifications.messages.slice(
+      page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE,
+      NUM_OF_ITEMS_ON_PAGE * page
+    );
+
+    let loadMore = true;
+
+    if (NUM_OF_ITEMS_ON_PAGE * page >= totalMessages) loadMore = false;
+
+    res.status(200).json({ messages, loadMore });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/*******************
+ CLEAR NOTIFICATIONS
+ *******************/
+module.exports.deleteUserNotifications = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to clear your notifications");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "notifications.messages");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Continue if there are no errors
+    await user.updateOne({ $set: { "notifications.messages": [] } });
+
+    res.status(200).json("Notifications cleared");
   } catch (err) {
     next(err);
   }

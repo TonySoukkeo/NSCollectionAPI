@@ -89,6 +89,17 @@ const getSaleGames = async () => {
         { title: games[i].title },
         { $unset: { salePrice: "" } }
       );
+
+      // Get all users with that has the not on sale game on their watchList and update sent to false
+      await User.update(
+        { "saleWatch.title": games[i].title, "watchList.notified": true },
+        {
+          $set: { "saleWatch.$.notified": false }
+        },
+        {
+          multi: true
+        }
+      );
     }
   }
 
@@ -113,8 +124,11 @@ const getSaleGames = async () => {
 
       // Get all users to send sale notifications out with any saleGames title that are on their wishlist
       const users = await User.find(
-        { "wishList.title": saleGames[i].title },
-        "title wishList email allowEmail notifications"
+        {
+          "saleWatch.title": saleGames[i].title,
+          "saleWatch.notified": false
+        },
+        "title saleWatch email allowEmail"
       );
 
       if (users.length >= 1) {
@@ -132,7 +146,7 @@ const getSaleGames = async () => {
           } else {
             userHash[userId].games.push({
               title: saleGames[i].title,
-              salePrice: saleGames[i]
+              salePrice: saleGames[i].salePrice
             });
           }
         });
@@ -165,14 +179,13 @@ const getSaleGames = async () => {
     const userHashArr = Object.values(userHash);
 
     /*************************************
-      SEND OUT EMAIL NOTIFICATIONS TO USERS
-     *************************************/
+    SEND OUT EMAIL NOTIFICATIONS TO USERS
+   *************************************/
     for (let i = 0; i < userHashArr.length; i++) {
       const user = userHashArr[i];
       const email = user.email;
       const gameAmount = user.games.length;
 
-      // Check if user allows email updates
       if (user.allowEmail) {
         client.sendMail({
           to: email,
@@ -194,27 +207,43 @@ const getSaleGames = async () => {
         `
         });
       }
-    }
 
-    // Loop through user.games array to send notifications out to user
-    for (let j = 0; j < user.games.length; j++) {
-      const title = user.games[j].title;
+      // Loop through user.games array to send notifications out to user
+      for (let j = 0; j < user.games.length; j++) {
+        const title = user.games[j].title;
 
-      // Send notification out to user
-      const notifyUser = await User.findOne({ email }, "notifications");
+        // Send notification out to user
+        const notifyUser = await User.findOne(
+          { email },
+          "notifications saleWatch"
+        );
 
-      const gameId = await GamesDb.findOne({ title }, "title");
+        const gameId = await GamesDb.findOne({ title }, "title");
 
-      const notificationDetails = {
-        message: `${gameId.title} is on sale!`,
-        gameId: gameId._id,
-        notifyType: "SALE"
-      };
+        const notificationDetails = {
+          message: `${gameId.title} is on sale!`,
+          gameId: gameId._id,
+          notifyType: "SALE"
+        };
 
-      if (notifyUser && gameId) {
-        await notifyUser.update({
-          $push: { notifications: notificationDetails }
-        });
+        const notificationCount = (notifyUser.notifications.count += 1);
+
+        if (notifyUser && gameId) {
+          // Push notificationsDetails to user's notifications
+          await notifyUser.updateOne({
+            $set: { "notifications.count": notificationCount },
+            $push: { "notifications.message": notificationDetails }
+          });
+
+          // Update notified to true for game on user's watchlist
+          await User.findOneAndUpdate(
+            { email, "saleWatch.title": title },
+            {
+              $set: { "saleWatch.$.notified": true }
+            },
+            { new: true }
+          );
+        }
       }
     }
 
@@ -428,15 +457,16 @@ const getNewReleases = async () => {
 
 const runAll = async (req, res, next) => {
   try {
-    // await getDlc();
-    // await getComingSoon();
-    // await getGamesWithDemos();
-    // await getNewReleases();
     await getSaleGames();
+    await getDlc();
+    await getComingSoon();
+    await getGamesWithDemos();
+    await getNewReleases();
 
     console.log("Data base updated");
     res.status(200).json("DB Updated");
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };

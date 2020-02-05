@@ -60,7 +60,7 @@ const userSchema = new Schema(
           type: String,
           required: true
         },
-        sent: {
+        notified: {
           type: Boolean,
           required: true,
           default: false
@@ -82,26 +82,33 @@ const userSchema = new Schema(
       type: Boolean,
       default: false
     },
-    notifications: [
-      {
-        message: {
-          type: String,
-          required: true
-        },
-        gameId: {
-          type: Schema.Types.ObjectId,
-          ref: "Game"
-        },
-        userId: {
-          type: Schema.Types.ObjectId,
-          ref: "User"
-        },
-        notifyType: {
-          type: String,
-          required: true
+    notifications: {
+      count: {
+        type: Number,
+        required: true,
+        default: 0
+      },
+      messages: [
+        {
+          message: {
+            type: String,
+            required: true
+          },
+          gameId: {
+            type: Schema.Types.ObjectId,
+            ref: "Game"
+          },
+          userId: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+          },
+          notifyType: {
+            type: String,
+            required: true
+          }
         }
-      }
-    ],
+      ]
+    },
     allowEmail: {
       type: Boolean,
       required: true,

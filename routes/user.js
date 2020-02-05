@@ -19,6 +19,11 @@ router.post("/collection", userControllers.postAddToCollection);
  ***************************************/
 router.delete("/collection", userControllers.deleteGameFromCollection);
 
+/*****************
+ GET USER WISHLIST
+ *****************/
+router.get("/wishlist", userControllers.getUserWishList);
+
 /*********************
  ADD GAME TO WISHLIST
  *********************/
@@ -28,5 +33,35 @@ router.post("/wishlist", userControllers.postAddGameToWishlist);
  DELETE GAME FROM WISHLIST
  *************************/
 router.delete("/wishlist", userControllers.deleteGameFromWishlist);
+
+/************************
+ GET USER SALE WATCH LIST
+ ************************/
+router.get("/salewatch", userControllers.getUserSaleWatch);
+
+/*********************
+ ADD GAME TO SALE WATCH
+ *********************/
+router.post("/salewatch", userControllers.addToSaleWatch);
+
+/***************************
+ DELETE GAME FROM SALE WATCH
+ ***************************/
+router.delete("/salewatch", userControllers.deleteGameFromSaleWatch);
+
+/************************
+ CLEAR USERS NOTIFICATIONS
+ ************************/
+router.delete("/notifications", userControllers.deleteUserNotifications);
+
+/************************
+ GET USERS NOTIFICATIONS
+ ************************/
+router.get("/notifications", userControllers.getNotifications);
+
+/****************************
+ GET ALL USERS NOTIFICATIONS
+ ****************************/
+router.get("/all-notifications", userControllers.getAllNotifications);
 
 module.exports = router;

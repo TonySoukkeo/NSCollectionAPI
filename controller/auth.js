@@ -34,7 +34,8 @@ module.exports.register = async (req, res, next) => {
       lastName = req.body.lastName,
       email = req.body.email,
       password = req.body.password,
-      userName = req.body.userName;
+      userName = req.body.userName,
+      allowEmail = req.body.allowEmail || false;
 
     // Check for any input errors
     const result = validationResult(req);
@@ -77,7 +78,8 @@ module.exports.register = async (req, res, next) => {
       lastName: sanitizeLastName,
       userName,
       email: email.toLowerCase(),
-      password: hashedPw
+      password: hashedPw,
+      allowEmail
     });
 
     await user.save(async err => {
