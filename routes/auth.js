@@ -43,6 +43,11 @@ router.post(
   authControllers.register
 );
 
+/******************************
+ CHECK IF USERNAME IS AVAILABLE
+ ******************************/
+router.get("/check-username", authControllers.checkUserName);
+
 /*************
  CONFIRM EMAIL
  *************/
@@ -115,4 +120,15 @@ router.post(
   ],
   authControllers.postPasswordChange
 );
+
+/************
+ EDIT PROFILE
+ ************/
+router.post("/edit", authControllers.postEditProfile);
+
+/************************************************
+  VALIDATE TOKEN ON INITIAL LOGIN FOR CLIENT SIDE
+ ************************************************/
+router.get("/validate", authControllers.validateToken);
+
 module.exports = router;

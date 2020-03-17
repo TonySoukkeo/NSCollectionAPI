@@ -22,7 +22,7 @@ router.delete("/collection", userControllers.deleteGameFromCollection);
 /*****************
  GET USER WISHLIST
  *****************/
-router.get("/wishlist", userControllers.getUserWishList);
+router.post("/get-wishlist", userControllers.getUserWishList);
 
 /*********************
  ADD GAME TO WISHLIST
@@ -37,7 +37,7 @@ router.delete("/wishlist", userControllers.deleteGameFromWishlist);
 /************************
  GET USER SALE WATCH LIST
  ************************/
-router.get("/salewatch", userControllers.getUserSaleWatch);
+router.post("/get-salewatch", userControllers.getUserSaleWatch);
 
 /*********************
  ADD GAME TO SALE WATCH

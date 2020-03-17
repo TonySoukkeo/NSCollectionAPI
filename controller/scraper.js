@@ -1,6 +1,7 @@
 const dotenv = require("dotenv");
 const nodemailer = require("nodemailer");
 const sgTransport = require("nodemailer-sendgrid-transport");
+const fs = require("fs");
 
 // Sendgrid configuration
 const options = {
@@ -23,22 +24,49 @@ const SaleDb = require("../models/saleGames");
 const User = require("../models/user");
 
 // Utilities
-const { getGames, getGameDetails } = require("../util/scraper");
+const { getGames, getGameDetails, searchGame } = require("../util/scraper");
 
 /****************
  GET GAME BY URL
  ****************/
 module.exports.getGameByUrl = async (req, res, next) => {
   try {
-    const gameDetails = await getGameDetails(
-      "https://www.nintendo.com/games/detail/cat-quest-switch/",
-      "fill in"
-    );
+    // const gameDetails = await getGameDetails(
+    //   "https://www.nintendo.com/games/detail/the-binding-of-isaac-afterbirth-plus-switch/",
+    //   "fill in"
+    // );
 
-    const game = new GamesDb(gameDetails);
+    // const game = new GamesDb(gameDetails);
 
-    await game.save();
-    res.status(200).json(gameDetails);
+    // await game.save();
+
+    // current count = 850
+    const skip = 3;
+    const allGames = await GamesDb.find({}, "title releaseDate").skip(2398);
+
+    for (let i = 0; i < allGames.length; i++) {
+      const releaseDate = await searchGame(allGames[i].title);
+      const game = await GamesDb.findOne(
+        { title: allGames[i].title },
+        "title releaseDate"
+      );
+
+      if (releaseDate && game) {
+        // Titles matched
+        await game.updateOne({ $set: { releaseDate: releaseDate } });
+      } else {
+        // Titles did not match
+        let writeStream = fs.createWriteStream("gamesToBeFixed.txt", {
+          flags: "a"
+        });
+
+        writeStream.write(`${allGames[i].title}\r\n`);
+
+        writeStream.end();
+      }
+    }
+    console.log("updated");
+    res.status(200).json("updated");
   } catch (err) {
     next(err);
   }
@@ -157,6 +185,9 @@ const getSaleGames = async () => {
       // If sale game isn't found on GamesDb, create a new document for that game
       if (!found) {
         const gameDetails = await getGameDetails(saleGames[i].url, "sale");
+
+        // Continue the loop if page is not found
+        if (!gameDetails) continue;
 
         gameDetails.salePrice = saleGames[i].salePrice;
         gameDetails.title = saleGames[i].title;
@@ -278,10 +309,13 @@ const getDlc = async () => {
     ) {
       for (let i = 0; i < dlcGames.length; i++) {
         const found = await GamesDb.findOne({ title: dlcGames[i].title });
+
         if (found && found.dlc.length !== 0) {
           continue;
         } else if (!found) {
           const gameDetails = await getGameDetails(dlcGames[i].url);
+
+          if (!gameDetails) continue;
 
           const gameDb = new GamesDb(gameDetails);
 
@@ -341,6 +375,8 @@ const getComingSoon = async () => {
             "coming soon"
           );
 
+          if (!gameDetails) continue;
+
           const gamesDb = new GamesDb(gameDetails);
           gamesDb.title = comingSoonGames[i].title;
           await gamesDb.save();
@@ -382,6 +418,9 @@ const getGamesWithDemos = async () => {
 
         if (!found) {
           const gameDetails = await getGameDetails(gameDemos[i].url, "demo");
+
+          if (!gameDetails) continue;
+
           gameDetails.title = gameDemos[i].title;
 
           const game = new GamesDb(gameDetails);
@@ -424,6 +463,8 @@ const getNewReleases = async () => {
           // Scrape for specific game detail
           const gameDetails = await getGameDetails(newRelease[i].url);
 
+          if (!gameDetails) continue;
+
           gameDetails.price = newRelease[i].price;
           gameDetails.title = newRelease[i].title;
 
@@ -457,14 +498,17 @@ const getNewReleases = async () => {
 
 const runAll = async (req, res, next) => {
   try {
-    await getSaleGames();
-    await getDlc();
-    await getComingSoon();
-    await getGamesWithDemos();
-    await getNewReleases();
+    // await getSaleGames();
+    // await getDlc();
+    // await getComingSoon();
+    // await getGamesWithDemos();
+    // await getNewReleases();
+    const test = await getGames("sale");
 
-    console.log("Data base updated");
-    res.status(200).json("DB Updated");
+    res.status(200).json(test);
+
+    // console.log("Data base updated");
+    // res.status(200).json("DB Updated");
   } catch (err) {
     console.log(err);
     next(err);

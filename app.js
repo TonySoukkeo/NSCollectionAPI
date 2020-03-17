@@ -59,7 +59,7 @@ app.use((err, req, res, next) => {
   const status = err.statusCode || 400,
     message = err.message;
 
-  res.status(status).send({ message });
+  res.status(status).json({ message, status });
 });
 
 mongoose

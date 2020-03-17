@@ -50,6 +50,15 @@ const gamesSchema = new Schema({
       }
     }
   ],
+  watchedBy: [
+    {
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+      }
+    }
+  ],
   wantedBy: [
     {
       user: {

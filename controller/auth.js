@@ -25,6 +25,38 @@ const client = nodemailer.createTransport(sgTransport(options));
 const User = require("../models/user");
 const Token = require("../models/token");
 
+/*******************************
+  CHECK IF USERNAME IS AVAILABLE 
+ *******************************/
+module.exports.checkUserName = async (req, res, next) => {
+  try {
+    const userName = req.query.userName;
+
+    // Check if username is under 3 characters long
+    if (userName.length < 3) {
+      const error = new Error();
+      error.statusCode = 422;
+      error.message = "Username must be between 3 to 15 characters long";
+
+      throw error;
+    }
+
+    // Check if userName is availableffff
+    const userNameExists = await User.findOne(
+      { userName: { $regex: new RegExp(userName, "i") } },
+      "userName"
+    );
+
+    if (userNameExists) {
+      error(422, "Username already exists");
+    }
+
+    res.status(200).json({ message: "User name is available", status: 200 });
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**********************
   REGISTERING NEW USERS 
  **********************/
@@ -105,7 +137,7 @@ module.exports.register = async (req, res, next) => {
               html: `
             <h4>Click the following link to verify your email address</h4>
 
-            <p><a href="${process.env.API_URI}/auth/verify?id=${user._id}&token=${verifyToken.token}">Confirm Email</a></p>
+            <p><a href="${process.env.API_URI}/confirm?id=${user._id}&token=${verifyToken.token}">Confirm Email</a></p>
           `
             });
           } catch (err) {
@@ -119,7 +151,8 @@ module.exports.register = async (req, res, next) => {
 
     res.status(200).json({
       message:
-        "Sucesfully Registered! A confirmation code has been sent to your email"
+        "Sucesfully Registered! A confirmation code has been sent to your email",
+      status: 200
     });
   } catch (err) {
     next(err);
@@ -139,6 +172,11 @@ module.exports.confirmEmail = async (req, res, next) => {
     const userExists = await User.findOne({ _id: id });
     const tokenExists = await Token.findOne({ token });
 
+    // Check if user is already verified
+    if (userExists.isVerified) {
+      error(422, "This email is already verified");
+    }
+
     if (!tokenExists || !userExists) {
       error(
         404,
@@ -153,11 +191,11 @@ module.exports.confirmEmail = async (req, res, next) => {
 
     // Remove token from Token collection
     await Token.deleteOne({ token });
+
+    res.status(200).json({ message: "Email Confirmed!", status: 200 });
   } catch (err) {
     next(err);
   }
-
-  res.status(200).json({ message: "Email Confirmed!" });
 };
 
 /**************************
@@ -214,7 +252,9 @@ module.exports.resendVerification = async (req, res, next) => {
       }
     });
 
-    res.status(200).json("Email confirmation resent!");
+    res
+      .status(200)
+      .json({ message: "Email confirmation resent!", status: 200 });
   } catch (err) {
     next(err);
   }
@@ -289,7 +329,7 @@ module.exports.postLogin = async (req, res, next) => {
       process.env.JWT_SECRET
     );
 
-    res.status(200).json({ token, userId: user._id.toString() });
+    res.status(200).json({ token, userId: user._id.toString(), status: 200 });
   } catch (err) {
     next(err);
   }
@@ -301,7 +341,6 @@ module.exports.postLogin = async (req, res, next) => {
 module.exports.postPasswordReset = async (req, res, next) => {
   try {
     const email = req.body.email.toLowerCase();
-
     // Validate input
     const result = validationResult(req);
     const hasErrors = !result.isEmpty();
@@ -344,7 +383,10 @@ module.exports.postPasswordReset = async (req, res, next) => {
 
     await userExists.save();
 
-    res.status(200).json("A password reset link has been sent your email.");
+    res.status(200).json({
+      message: "A password reset link has been sent your email.",
+      status: 200
+    });
   } catch (err) {
     next(err);
   }
@@ -423,6 +465,106 @@ module.exports.postPasswordChange = async (req, res, next) => {
     res
       .status(201)
       .json("Password succesfully changed. You can now go back to login");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/************************************************
+  VALIDATE TOKEN ON INITIAL LOGIN FOR CLIENT SIDE
+ ************************************************/
+module.exports.validateToken = async (req, res, next) => {
+  try {
+    const token = req.query.token;
+    const userId = req.query.userId;
+
+    let isAuth = false;
+
+    // Check if token or userId is empty
+    if (token === "null" || userId === "null") {
+      res.status(401).json({ isAuth, status: 401 });
+      return;
+    }
+
+    let authorizedToken;
+
+    // Verify token
+    authorizedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!authorizedToken) {
+      res.status(401).json({ isAuth, status: 401 });
+      return;
+    }
+
+    // Compare if userId from token matches the userId passed along from query string
+    if (userId !== authorizedToken.userId) {
+      res.status(401).json({ isAuth, status: 401 });
+      return;
+    }
+
+    // Set isAuth to true if all the checks passes
+    isAuth = true;
+
+    // Get user profile
+    const user = await User.findOne(
+      { _id: userId },
+      { password: 0, pwResetToken: 0, pwResetExpiration: 0 }
+    ).populate("gameCollection.gameId", "title image rating");
+
+    if (!isAuth) {
+      error(401, "Invalid permissions");
+    }
+
+    if (!user) {
+      error(404, "User profile not found");
+    }
+
+    res.status(200).json({ isAuth, user, status: 200 });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/*************
+  EDIT PROFILE
+ *************/
+module.exports.postEditProfile = async (req, res, next) => {
+  try {
+    // Check if use is authenticated
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    const password = req.body.password;
+    console.log(password);
+    if (!isAuth) {
+      error(401, "Not authorized");
+    }
+
+    // Check for valid user
+    const user = await User.findOne({ _id: userId }, "password");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Check if password is being changed
+    if (password.length > 0) {
+      console.log("change password");
+      // Check if password is the same
+      const samePassword = await bcrypt.compare(password, user.password);
+
+      if (samePassword) {
+        error(422, "New password must be different from original");
+      }
+
+      console.log("made it past");
+      // Save new password against profile
+      const hashedPw = await bcrypt.hash(password, 12);
+
+      await user.update({ password: hashedPw });
+    }
+
+    res.status(200).json({ message: "Changes saved", status: 200 });
   } catch (err) {
     next(err);
   }

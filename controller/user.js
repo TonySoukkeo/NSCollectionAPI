@@ -10,10 +10,7 @@ const { error } = require("../util/errorHandling");
  ***************************/
 module.exports.getGameCollection = async (req, res, next) => {
   try {
-    // const userId = req.userId;
-
-    // For development purposes
-    const userId = "5e327407a4711a5964a52327";
+    const userId = req.query.userId;
 
     // Check if user exists
     const user = await User.findOne(
@@ -42,6 +39,8 @@ module.exports.getGameCollection = async (req, res, next) => {
 
     gameTotal = gameCollection.length;
 
+    const totalAmount = gameTotal;
+
     gameCollection = gameCollection.slice(
       page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE,
       NUM_OF_ITEMS_ON_PAGE * page
@@ -51,7 +50,9 @@ module.exports.getGameCollection = async (req, res, next) => {
 
     if (NUM_OF_ITEMS_ON_PAGE * page >= gameTotal) loadMore = false;
 
-    res.status(200).json({ gameCollection, loadMore });
+    res
+      .status(200)
+      .json({ gameCollection, loadMore, totalAmount, status: 200 });
   } catch (err) {
     next(err);
   }
@@ -62,13 +63,11 @@ module.exports.getGameCollection = async (req, res, next) => {
  **********************************/
 module.exports.postAddToCollection = async (req, res, next) => {
   try {
-    // const isAuth = req.isAuth;
-    // const userId = req.userId;
+    const isAuth = req.isAuth;
+    const userId = req.userId;
     const gameId = req.query.gameId;
 
-    // For development purposes
-    const isAuth = true;
-    const userId = "5e327407a4711a5964a52327";
+    console.log({ isAuth, userId });
 
     // Check if user is Authenticated
     if (!isAuth) {
@@ -147,7 +146,7 @@ module.exports.postAddToCollection = async (req, res, next) => {
 
     res.status(201).json({
       message: `${game.title} has been added to your collection`,
-      game
+      status: 200
     });
   } catch (err) {
     next(err);
@@ -213,7 +212,9 @@ module.exports.deleteGameFromCollection = async (req, res, next) => {
     // Remove user from ownedBy array in Game collection
     await game.updateOne({ $pull: { ownedBy: { user: user._id } } });
 
-    res.status(200).json("Game removed from collection");
+    res
+      .status(200)
+      .json({ message: "Game removed from collection", status: 200 });
   } catch (err) {
     next(err);
   }
@@ -236,9 +237,29 @@ module.exports.getUserWishList = async (req, res, next) => {
       error(404, "User not found");
     }
 
-    const wishList = user.wishList.map(game => game.gameId);
+    // Set up pagination
+    const page = req.body.page || 1;
+    const NUM_OF_ITEMS_ON_PAGE = 12;
+    let gameTotal;
 
-    res.status(200).json(wishList);
+    // Get User's game collection
+
+    let wishlist = user.wishList.map(game => game.gameId);
+
+    gameTotal = wishlist.length;
+
+    const totalAmount = gameTotal;
+
+    wishlist = wishlist.slice(
+      page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE,
+      NUM_OF_ITEMS_ON_PAGE * page
+    );
+
+    let loadMore = true;
+
+    if (NUM_OF_ITEMS_ON_PAGE * page >= gameTotal) loadMore = false;
+
+    res.status(200).json({ wishlist, loadMore, totalAmount, status: 200 });
   } catch (err) {
     next(err);
   }
@@ -294,7 +315,7 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
     });
 
     if (existsInGameCollection) {
-      error(422, "You already own this game");
+      error(422, "You can't add a game you already own to your wishlist");
     }
 
     // Continue if there are no errors
@@ -317,7 +338,7 @@ module.exports.postAddGameToWishlist = async (req, res, next) => {
       $push: { wishList: { gameId: game._id, title: game.title } }
     });
 
-    res.status(201).json("Game added to wishlist");
+    res.status(201).json({ message: "Game added to wishlist", status: 200 });
   } catch (err) {
     next(err);
   }
@@ -371,7 +392,9 @@ module.exports.deleteGameFromWishlist = async (req, res, next) => {
     // Remove game from user's wishlist
     await user.updateOne({ $pull: { wishList: { gameId } } });
 
-    res.status(200).json("Game removed from your wishlist");
+    res
+      .status(200)
+      .json({ message: "Game removed from your wishlist", status: 200 });
   } catch (err) {
     next(err);
   }
@@ -394,9 +417,27 @@ module.exports.getUserSaleWatch = async (req, res, next) => {
       error(404, "User not found");
     }
 
-    const saleWatch = user.saleWatch.map(game => game.gameId);
+    // Set up pagination
+    const page = req.body.page || 1;
+    const NUM_OF_ITEMS_ON_PAGE = 12;
+    let gameTotal;
 
-    res.status(200).json(saleWatch);
+    let saleWatch = user.saleWatch.map(game => game.gameId);
+
+    gameTotal = saleWatch.length;
+
+    const totalAmount = gameTotal;
+
+    saleWatch = saleWatch.slice(
+      page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE,
+      NUM_OF_ITEMS_ON_PAGE * page
+    );
+
+    let loadMore = true;
+
+    if (NUM_OF_ITEMS_ON_PAGE * page >= gameTotal) loadMore = false;
+
+    res.status(200).json({ saleWatch, loadMore, totalAmount, status: 200 });
   } catch (err) {
     next(err);
   }
@@ -459,7 +500,25 @@ module.exports.addToSaleWatch = async (req, res, next) => {
       $push: { saleWatch: { gameId: game._id, title: game.title } }
     });
 
-    res.status(200).json("Game has been added to your watchlist");
+    // Add user to watchedBy array in Game collection
+
+    let alreadyWatched = false;
+
+    if (game.watchedBy) {
+      game.watchedBy.forEach(el => {
+        if (el.user.toString() === user._id.toString()) alreadyWatched = true;
+      });
+    }
+
+    if (!alreadyWatched) {
+      // Add user to watchedBy in game collection
+
+      await game.updateOne({ $push: { watchedBy: { user: user._id } } });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Game has been added to your watchlist", status: 200 });
   } catch (err) {
     next(err);
   }
@@ -481,7 +540,7 @@ module.exports.deleteGameFromSaleWatch = async (req, res, next) => {
 
     // Check if user and game exists
     const user = await User.findOne({ _id: userId }, "saleWatch");
-    const game = await Games.findOne({ _id: gameId }, "title");
+    const game = await Games.findOne({ _id: gameId }, "title watchedBy");
 
     if (!user) {
       error(404, "User not found");
@@ -505,7 +564,19 @@ module.exports.deleteGameFromSaleWatch = async (req, res, next) => {
     // Remove game from user's saleWatch list
     await user.updateOne({ $pull: { saleWatch: { gameId } } });
 
-    res.status(200).json("Game has been removed from your watch list");
+    // Remove user from watchedBy array in game collection
+    if (game.watchedBy) {
+      await game.updateOne({
+        $pull: {
+          watchedBy: { user: user._id }
+        }
+      });
+    }
+
+    res.status(200).json({
+      message: "Game has been removed from your watch list",
+      status: 200
+    });
   } catch (err) {
     next(err);
   }

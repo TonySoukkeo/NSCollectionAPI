@@ -82,119 +82,45 @@ module.exports.getGames = async type => {
 
   await page.waitFor(2000);
 
-  let game;
+  const game = await page.evaluate(() => {
+    return Array.from(
+      document.querySelectorAll(".game-list-results-container li a")
+    ).map(games => {
+      let price = null,
+        salePrice = null;
 
-  // Get gameId for newly released title
-  if (type === "new release" || type === "dlc") {
-    game = await page.evaluate(() => {
-      return Array.from(
-        document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => {
-        let price;
+      if (games.querySelector(".row-price").textContent.trim() === "free") {
+        // Games that are free
+        price = 0;
+      } else if (
+        games.querySelector(".sale-price") &&
+        games.querySelector(".strike")
+      ) {
+        // Games that are on sale
+        price = +games.querySelector(".sale-price").textContent.split("$")[1];
+        salePrice = +games.querySelector(".strike").textContent.split("$")[1];
+      } else {
+        // Games that aren't on sale, regulsr msrp
+        price = +games
+          .querySelector(".row-price")
+          .textContent.trim()
+          .split("$")[1];
+      }
 
-        const free =
-          games.querySelector(".row-price strong") &&
-          games.querySelector(".row-price strong").textContent === "Free";
-
-        if (free) {
-          price = 0;
-        } else {
-          price =
-            (games.querySelector(".row-price .strike") &&
-              parseFloat(
-                games
-                  .querySelector(".row-price .strike")
-                  .textContent.split("$")[1]
-              )) ||
-            parseFloat(
-              games.querySelector(".row-price strong").textContent.split("$")[1]
-            );
-        }
-
-        return {
-          title: games
-            .querySelector("h3")
-            .textContent.replace(
-              /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-              ""
-            ),
-          price,
-          url: games.href
-        };
-      });
-    });
-  } else if (type === "coming soon") {
-    game = await page.evaluate(() => {
-      return Array.from(
-        document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => ({
+      return {
+        image: games.querySelector(".boxart-container img").src,
         title: games
           .querySelector("h3")
           .textContent.replace(
             /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
             ""
           ),
+        price,
+        salePrice,
         url: games.href
-      }));
+      };
     });
-  } else if (type === "demo") {
-    game = await page.evaluate(() => {
-      return Array.from(
-        document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => {
-        let price;
-
-        const free =
-          games.querySelector(".row-price strong") &&
-          games.querySelector(".row-price strong").textContent === "Free";
-
-        if (free) {
-          price = 0;
-        } else {
-          price =
-            (games.querySelector(".row-price .strike") &&
-              parseFloat(
-                games
-                  .querySelector(".row-price .strike")
-                  .textContent.split("$")[1]
-              )) ||
-            parseFloat(
-              games.querySelector(".row-price strong").textContent.split("$")[1]
-            );
-        }
-
-        return {
-          title: games
-            .querySelector("h3")
-            .textContent.replace(
-              /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-              ""
-            ),
-          price,
-          url: games.href
-        };
-      });
-    });
-  } else if (type === "sale") {
-    game = await page.evaluate(() => {
-      return Array.from(
-        document.querySelectorAll(".game-list-results-container li a")
-      ).map(games => ({
-        title: games
-          .querySelector("h3")
-          .textContent.replace(
-            /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-            ""
-          ),
-        url: games.href,
-        salePrice: parseFloat(
-          games
-            .querySelector(".row-price .sale-price")
-            .textContent.split("$")[1]
-        )
-      }));
-    });
-  }
+  });
 
   await browser.close();
 
@@ -204,7 +130,7 @@ module.exports.getGames = async type => {
 /***********************
  GET GAME DETAILS BY URL
  ***********************/
-module.exports.getGameDetails = async (url, type) => {
+module.exports.getGameDetails = async url => {
   const browser = await puppeteer.launch({ headless: true });
 
   const page = await browser.newPage();
@@ -215,8 +141,7 @@ module.exports.getGameDetails = async (url, type) => {
     if (
       req.resourceType() == "stylesheet" ||
       req.resourceType() == "font" ||
-      req.resourceType() === "image" ||
-      req.resourceType() === "script"
+      req.resourceType() == "image"
     ) {
       req.abort();
     } else {
@@ -229,361 +154,323 @@ module.exports.getGameDetails = async (url, type) => {
     waitUntil: "load"
   });
 
+  // Check if there is an age verification form
+  try {
+    await page.$eval("#age-verification-form", form => {
+      // Fill out date inputs
+      form.querySelector(".month").value = 10;
+      form.querySelector(".day").value = 10;
+      form.querySelector(".year").value = 1992;
+
+      // Submit form
+      form.querySelector(".btn.continue").click();
+    });
+  } catch (err) {
+    // Continue to the rest of the code if there is no verification form
+  }
+
   await page.waitFor(5000);
 
-  // Evaluate html page
-  const gameDetails = await page.evaluate(async () => {
-    // Values from webpage
-    const image =
-      (document.querySelector(".boxart img") &&
-        document.querySelector(".boxart img").src) ||
-      "NA";
+  try {
+    // Evaluate html page
+    const gameDetails = await page.evaluate(async () => {
+      // Values from webpage
+      let demo = false;
 
-    let demo = false;
+      if (document.querySelector("#demo-download")) demo = true;
 
-    if (document.querySelector("#purchase-options #demo-download")) demo = true;
+      const description =
+        (document.querySelectorAll(".bullet-list p") &&
+          Array.from(document.querySelectorAll(".bullet-list p"))
+            .map(desc => desc.textContent)
+            .join("\n\n")) ||
+        "NA";
 
-    const description =
-      (document.querySelectorAll(".bullet-list p") &&
-        Array.from(document.querySelectorAll(".bullet-list p"))
-          .map(desc => desc.textContent)
-          .join("\n\n")) ||
-      "NA";
+      const rating =
+        (document.querySelector(
+          ".game-info-item.esrb-rating dd .esrb-content img"
+        ) &&
+          document.querySelector(
+            ".game-info-item.esrb-rating dd .esrb-content img"
+          ).src) ||
+        "NA";
 
-    const rating =
-      (document.querySelector(".title .esrb-rating .esrb-icon") &&
-        document.querySelector(".title .esrb-rating .esrb-icon").src) ||
-      "NA";
+      const publisher =
+        (document.querySelector(".game-info-item.publisher dd") &&
+          document
+            .querySelector(".game-info-item.publisher dd")
+            .textContent.trim()) ||
+        "NA";
 
-    const publisher =
-      (document.querySelector(".column2 .publisher dd") &&
-        document.querySelector(".column2 .publisher dd").textContent.trim()) ||
-      "NA";
+      const numOfPlayers =
+        (document.querySelector(".game-info-item.players dd") &&
+          document
+            .querySelector(".game-info-item.players dd")
+            .textContent.trim()) ||
+        "NA";
 
-    const numOfPlayers =
-      (document.querySelector(".game-information .players dd") &&
-        document
-          .querySelector(".game-information .players dd")
-          .textContent.trim()) ||
-      "NA";
+      const releaseDate =
+        document.querySelector(".game-info-item.release-date dd") &&
+        document.querySelector(".game-info-item.release-date dd").textContent;
 
-    let fileSize =
-      (document.querySelector(".game-information .file-size dd") &&
-        document
-          .querySelector(".game-information .file-size dd")
-          .textContent.trim()) ||
-      "NA";
+      let fileSize =
+        (document.querySelector(".game-info-item.file-size") &&
+          document
+            .querySelector(".game-info-item.file-size dd")
+            .textContent.trim()) ||
+        "NA";
 
-    const category =
-      (document.querySelector(".game-information .category dd") &&
-        document
-          .querySelector(".game-information .category dd")
-          .textContent.replace(/(\r\n|\n|\r)/gm, "")
-          .replace(/ +/g, " ")
-          .trim()) ||
-      "NA";
+      const category =
+        (document.querySelector(".game-info-item + .genre") &&
+          document
+            .querySelector(".game-info-item + .genre dd")
+            .textContent.replace(/(\r\n|\n|\r)/gm, "")
+            .replace(/ +/g, " ")
+            .trim()) ||
+        "NA";
 
-    const gallery =
-      (document.querySelectorAll(
-        ".media .carousel-viewport .items .item:not(.video) img"
-      ) &&
-        Array.from(
-          document.querySelectorAll(
-            ".media .carousel-viewport .items .item:not(.video) img"
-          )
-        ).map(img => `https://www.nintendo.com${img.dataset.src}`)) ||
-      [];
+      const gallery =
+        (document.querySelector("product-gallery") &&
+          Array.from(document.querySelectorAll("product-gallery")).map(item => {
+            const test = item.shadowRoot;
 
-    const dlc = Array.from(
-      document.querySelectorAll(".dlc-purchase.wrapper")
-    ).map(dlc => ({
-      header: dlc.querySelector("h2").textContent,
-      content: Array.from(dlc.querySelectorAll(".item")).map(item => ({
-        image: item.querySelector("img").src,
-        title: item.querySelector(".dlc-info .title").textContent,
-        releaseDate: item.querySelector(".dlc-info .release-date").textContent,
-        price: parseFloat(
-          item.querySelector(".price .msrp").textContent.split("$")[1]
-        ),
-        salePrice:
-          (item
-            .querySelector(".price .sale-price price")
-            .textContent.split("$")[1] &&
-            parseFloat(
-              item
-                .querySelector("price .sale-price price")
-                .textContent.split("$")[1].textContent
-            )) ||
-          "NA",
-        description: Array.from(item.querySelectorAll(".description"))
-          .map(desc => desc.textContent)
-          .join("\n\n")
-      }))
-    }));
+            return Array.from(
+              test.querySelectorAll("product-gallery-item[type=image]")
+            ).map(img => `https://nintendo.com${img.src}`);
+          })) ||
+        [];
 
-    let onlinePlay = false;
-    let cloudSave = false;
+      const dlc =
+        (document.querySelectorAll(".dlc-area.dlc-purchase") &&
+          Array.from(document.querySelectorAll(".dlc-area.dlc-purchase")).map(
+            item => ({
+              header: item.querySelector(".dlc-tile-wrapper h2").textContent,
+              content: Array.from(item.querySelectorAll("product-tile")).map(
+                item => ({
+                  title: item.querySelector(".title").textContent,
+                  image: item.querySelector("img").src,
+                  salePrice:
+                    +item
+                      .querySelector(".sale-price")
+                      .textContent.split("$")[1] || null,
+                  price: +item.querySelector(".msrp").textContent.split("$")[1],
+                  description: item.querySelector(".description").textContent
+                })
+              )
+            })
+          )) ||
+        [];
 
-    if (document.querySelector(".nso-support .feature img")) {
-      Array.from(document.querySelectorAll(".nso-support .feature img")).map(
-        features => {
-          if (features.alt === "Online Play") onlinePlay = true;
-          else if (features.alt === "Save Data Cloud") cloudSave = true;
-        }
-      );
-    }
+      let onlinePlay = false;
+      let cloudSave = false;
 
-    return {
-      category,
-      demo,
-      gallery,
-      image,
-      description,
-      rating,
-      publisher,
-      numOfPlayers,
-      fileSize,
-      onlinePlay,
-      dlc,
-      cloudSave
-    };
-  });
+      if (document.querySelector(".services-supported a")) {
+        Array.from(document.querySelectorAll(".services-supported a")).map(
+          features => {
+            if (features.getAttribute("aria-label") === "online-play")
+              onlinePlay = true;
+            else if (features.getAttribute("aria-label") === "save-data-cloud")
+              cloudSave = true;
+          }
+        );
+      }
 
-  // Get release date for game
-  let releaseDate;
-  let price;
+      return {
+        category,
+        demo,
+        gallery,
+        description,
+        rating,
+        publisher,
+        numOfPlayers,
+        fileSize,
+        onlinePlay,
+        dlc,
+        releaseDate,
+        cloudSave
+      };
+    });
 
-  if (type === "coming soon") {
-    releaseDate = await page.$eval(
-      ".game-information .release-date dd",
-      date => date.textContent
-    );
-  } else {
-    releaseDate = await page.$eval(".game-information .release-date dd", date =>
-      Date(date.textContent)
-    );
+    await browser.close();
+
+    return gameDetails;
+  } catch (err) {
+    await browser.close();
+    return;
   }
-
-  if (type) {
-    const gameRelease = await page.$eval(".release-tab", text =>
-      text.textContent.trim()
-    );
-
-    if (gameRelease !== "Available Now" || type === "sale") {
-      price = await page.evaluate(() => {
-        const msrp = document.querySelector(".price .msrp");
-
-        if (!msrp) return;
-        else if (msrp.textContent === "Free") return 0;
-        else if (msrp.textContent.trim().length !== 0) {
-          return parseFloat(msrp.textContent.split("$")[1]);
-        }
-      });
-    } else {
-      price = await page.evaluate(() => {
-        const msrp = document.querySelector(".price .msrp");
-
-        if (msrp) {
-          return parseFloat(msrp.textContent.split("$")[1]);
-        } else if (isNaN(msrp)) {
-          return 0;
-        }
-        return;
-      });
-    }
-
-    gameDetails.price = price;
-
-    // Set sale price if one exists
-    if (type !== "sale") {
-      const salePrice = await page.evaluate(() => {
-        const onSale = document.querySelector(".price .sale-price");
-
-        if (onSale) {
-          parseFloat(onSale.textContent.split("$")[1]);
-        }
-      });
-
-      if (salePrice) gameDetails.salePrice = salePrice;
-    }
-
-    if (type == "fill in") {
-      const title = await page.evaluate(() => {
-        const title = document
-          .querySelector(".title h1")
-          .textContent.replace(
-            /(™|®|©|&trade;|&reg;|&copy;|&#8482;|&#174;|&#169;)/g,
-            ""
-          );
-
-        return title;
-      });
-      gameDetails.title = title;
-    }
-  }
-
-  // Assign release date to gameDetails
-  gameDetails.releaseDate = releaseDate;
-
-  await browser.close();
-
-  return gameDetails;
 };
 
 /**************************************
  GET GAME DETAILS BY SEARCH FROM TITLE
  **************************************/
-// module.exports.searchGame = async title => {
-//   const browser = await puppeteer.launch({ headless: true });
+module.exports.searchGame = async title => {
+  try {
+    const browser = await puppeteer.launch({ headless: true });
 
-//   const page = await browser.newPage();
+    const page = await browser.newPage();
 
-//   await page.setRequestInterception(true);
+    await page.setRequestInterception(true);
 
-//   page.on("request", req => {
-//     if (
-//       req.resourceType() == "stylesheet" ||
-//       req.resourceType() == "font" ||
-//       req.resourceType() === "image"
-//     ) {
-//       req.abort();
-//     } else {
-//       req.continue();
-//     }
-//   });
+    page.on("request", req => {
+      if (
+        req.resourceType() == "stylesheet" ||
+        req.resourceType() == "font" ||
+        req.resourceType() === "image"
+      ) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
-//   await page.goto("https://www.nintendo.com/", {
-//     timeout: 0,
-//     waitUntil: "load"
-//   });
+    await page.goto("https://www.nintendo.com/", {
+      timeout: 0,
+      waitUntil: "load"
+    });
 
-//   await page.$eval(".btn-search-nintendo", btn => btn.click());
-//   await page.type(".input-flex input", title);
-//   await page.waitFor(5000);
+    await page.$eval(".btn-search-nintendo", btn => btn.click());
+    await page.type(".input-flex input", title);
 
-//   const resultTitle =
-//     (await page.$eval(".details", el => el)) &&
-//     (await page.$eval(".details .title", el => el.textContent));
+    await page.waitForSelector(".details");
 
-//   if (title.toLowerCase().trim() !== resultTitle.toLowerCase()) {
-//     await browser.close();
-//     console.log({ message: "No Match", title: title.trim() });
-//     return;
-//   }
+    const resultTitle =
+      (await page.$eval(".details", el => el)) &&
+      (await page.$eval(".details .title", el => el.textContent));
 
-//   await page.$eval(".game-results li:first-child a", link => link.click());
+    if (title.toLowerCase().trim() !== resultTitle.toLowerCase()) {
+      await browser.close();
+      console.log({ message: "No Match", title: title.trim() });
+      return;
+    }
 
-//   await page.waitFor(10000);
+    await page.$eval(".game-results li:first-child a", link => link.click());
 
-//   const gameDetails = await page.evaluate(() => {
-//     // Check to see if game is released yet
-//     const release = document
-//       .querySelector(".details .release-tab")
-//       .textContent.trim();
+    await page.waitForSelector(".game-information .release-date dd");
 
-//     try {
-//       // Values from webpage
-//       const image =
-//         (document.querySelector(".boxart img") &&
-//           document.querySelector(".boxart img").src) ||
-//         "NA";
+    const releaseDate = await page.$eval(
+      ".game-information .release-date dd",
+      date => date.textContent
+    );
 
-//       const description =
-//         (document.querySelectorAll(".bullet-list p") &&
-//           Array.from(document.querySelectorAll(".bullet-list p"))
-//             .map(desc => desc.textContent)
-//             .join("\n\n")) ||
-//         "NA";
+    await browser.close();
 
-//       const rating =
-//         (document.querySelector(".title .esrb-rating .esrb-icon") &&
-//           document.querySelector(".title .esrb-rating .esrb-icon").src) ||
-//         "NA";
+    return releaseDate;
+  } catch (err) {
+    if (err instanceof puppeteer.errors.TimeoutError) {
+      console.log({ message: "No Match", title: title.trim() });
+      return;
+    }
+  }
 
-//       const publisher =
-//         (document.querySelector(".column2 .publisher dd") &&
-//           document
-//             .querySelector(".column2 .publisher dd")
-//             .textContent.trim()) ||
-//         "NA";
+  // await page.waitFor(4000);
 
-//       let releaseDate;
+  // const gameDetails = await page.evaluate(() => {
+  //   // Check to see if game is released yet
+  //   const release = document
+  //     .querySelector(".details .release-tab")
+  //     .textContent.trim();
 
-//       if (release !== "Available Now") {
-//         releaseDate = document.querySelector(".release-date dd").textContent;
-//       } else {
-//         releaseDate =
-//           (document.querySelector(".game-information .release-date dd") &&
-//             new Date(
-//               document.querySelector(
-//                 ".game-information .release-date dd"
-//               ).textContent
-//             )) ||
-//           "NA";
-//       }
+  //   try {
+  //     // Values from webpage
+  //     const image =
+  //       (document.querySelector(".boxart img") &&
+  //         document.querySelector(".boxart img").src) ||
+  //       "NA";
 
-//       const numOfPlayers =
-//         (document.querySelector(".game-information .players dd") &&
-//           document
-//             .querySelector(".game-information .players dd")
-//             .textContent.trim()) ||
-//         "NA";
+  //     const description =
+  //       (document.querySelectorAll(".bullet-list p") &&
+  //         Array.from(document.querySelectorAll(".bullet-list p"))
+  //           .map(desc => desc.textContent)
+  //           .join("\n\n")) ||
+  //       "NA";
 
-//       let fileSize =
-//         (document.querySelector(".game-information .file-size dd") &&
-//           document
-//             .querySelector(".game-information .file-size dd")
-//             .textContent.trim()) ||
-//         "NA";
+  //     const rating =
+  //       (document.querySelector(".title .esrb-rating .esrb-icon") &&
+  //         document.querySelector(".title .esrb-rating .esrb-icon").src) ||
+  //       "NA";
 
-//       const category =
-//         (document.querySelector(".game-information .category dd") &&
-//           document
-//             .querySelector(".game-information .category dd")
-//             .textContent.replace(/(\r\n|\n|\r)/gm, "")
-//             .replace(/ +/g, " ")
-//             .trim()) ||
-//         "NA";
+  //     const publisher =
+  //       (document.querySelector(".column2 .publisher dd") &&
+  //         document
+  //           .querySelector(".column2 .publisher dd")
+  //           .textContent.trim()) ||
+  //       "NA";
 
-//       let price;
+  //     let releaseDate;
 
-//       price =
-//         (document.querySelector(".price .msrp").textContent.trim().length !==
-//           0 &&
-//           parseFloat(
-//             document.querySelector(".price .msrp").textContent.split("$")[1]
-//           )) ||
-//         null;
+  //     if (release !== "Available Now") {
+  //       releaseDate = document.querySelector(".release-date dd").textContent;
+  //     } else {
+  //       releaseDate =
+  //         (document.querySelector(".game-information .release-date dd") &&
+  //           new Date(
+  //             document.querySelector(
+  //               ".game-information .release-date dd"
+  //             ).textContent
+  //           )) ||
+  //         "NA";
+  //     }
 
-//       const gallery =
-//         (document.querySelectorAll(
-//           ".media .carousel-viewport .items .item:not(.video) img"
-//         ) &&
-//           Array.from(
-//             document.querySelectorAll(
-//               ".media .carousel-viewport .items .item:not(.video) img"
-//             )
-//           ).map(img => `https://www.nintendo.com${img.dataset.src}`)) ||
-//         [];
+  //     const numOfPlayers =
+  //       (document.querySelector(".game-information .players dd") &&
+  //         document
+  //           .querySelector(".game-information .players dd")
+  //           .textContent.trim()) ||
+  //       "NA";
 
-//       return {
-//         price,
-//         category,
-//         gallery,
-//         image,
-//         description,
-//         rating,
-//         publisher,
-//         releaseDate,
-//         numOfPlayers,
-//         fileSize
-//       };
-//     } catch (err) {
-//       console.log(err);
-//     }
-//   });
+  //     let fileSize =
+  //       (document.querySelector(".game-information .file-size dd") &&
+  //         document
+  //           .querySelector(".game-information .file-size dd")
+  //           .textContent.trim()) ||
+  //       "NA";
 
-//   await browser.close();
+  //     const category =
+  //       (document.querySelector(".game-information .category dd") &&
+  //         document
+  //           .querySelector(".game-information .category dd")
+  //           .textContent.replace(/(\r\n|\n|\r)/gm, "")
+  //           .replace(/ +/g, " ")
+  //           .trim()) ||
+  //       "NA";
 
-//   return gameDetails;
-// };
+  //     let price;
+
+  //     price =
+  //       (document.querySelector(".price .msrp").textContent.trim().length !==
+  //         0 &&
+  //         parseFloat(
+  //           document.querySelector(".price .msrp").textContent.split("$")[1]
+  //         )) ||
+  //       null;
+
+  //     const gallery =
+  //       (document.querySelectorAll(
+  //         ".media .carousel-viewport .items .item:not(.video) img"
+  //       ) &&
+  //         Array.from(
+  //           document.querySelectorAll(
+  //             ".media .carousel-viewport .items .item:not(.video) img"
+  //           )
+  //         ).map(img => `https://www.nintendo.com${img.dataset.src}`)) ||
+  //       [];
+
+  //     return {
+  //       price,
+  //       category,
+  //       gallery,
+  //       image,
+  //       description,
+  //       rating,
+  //       publisher,
+  //       releaseDate,
+  //       numOfPlayers,
+  //       fileSize
+  //     };
+  //   } catch (err) {
+  //     console.log(err);
+  //   }
+  // });
+
+  // return gameDetails;
+};

@@ -18,10 +18,15 @@ module.exports.searchGame = async (req, res, next) => {
     const results = game.map(el => ({
       id: el._id.toString(),
       title: el.title,
-      image: el.image
+      image: el.image,
+      price: el.price || null,
+      salePrice: el.salePrice || null,
+      players: el.numOfPlayers,
+      releaseDate: el.releaseDate,
+      own: el.ownedBy
     }));
 
-    res.status(200).json(results);
+    res.status(200).json({ results, status: 200 });
   } catch (err) {
     next(err);
   }
@@ -160,11 +165,17 @@ module.exports.getAllGames = async (req, res, next) => {
       };
     }
 
+    if (priceRange.min === 0 && priceRange.max === 0) {
+      priceFilter = {
+        price: 0
+      };
+    }
+
     if (sale) filter.salePrice = { $exists: true };
 
     if (demo) filter.demo = true;
 
-    if (dlc) filter["dlc.0"] = { $exists: true };
+    if (dlc) filter["dlc.1"] = { $exists: true };
 
     if (cloudSave) filter.cloudSave = true;
 
@@ -173,7 +184,7 @@ module.exports.getAllGames = async (req, res, next) => {
     if (newRelease) {
       const newGames = await NewReleases.find({}).populate(
         "details",
-        "title price salePrice image dlc cloudSave onlinePlay demo"
+        "title price salePrice image dlc cloudSave onlinePlay demo rating"
       );
 
       games = newGames
@@ -226,7 +237,7 @@ module.exports.getAllGames = async (req, res, next) => {
     } else if (comingSoon) {
       const comingSoonGames = await ComingSoon.find().populate(
         "details",
-        "title price salePrice image dlc cloudSave onlinePlay demo"
+        "title price salePrice image dlc cloudSave onlinePlay demo rating"
       );
 
       games = comingSoonGames
@@ -281,7 +292,7 @@ module.exports.getAllGames = async (req, res, next) => {
         {
           $and: [filter, priceFilter]
         },
-        "title price salePrice image"
+        "title price salePrice image rating cloudSave onlinePlay"
       )
         .limit(NUM_OF_ITEMS_ON_PAGE)
         .skip(page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE);
@@ -291,7 +302,7 @@ module.exports.getAllGames = async (req, res, next) => {
         {
           $and: [filter, priceFilter]
         },
-        "title price salePrice image"
+        "title price salePrice image rating cloudSave onlinePlay"
       );
 
       gameTotal = filteredGames.length;
@@ -301,7 +312,7 @@ module.exports.getAllGames = async (req, res, next) => {
 
     if (NUM_OF_ITEMS_ON_PAGE * page >= gameTotal) loadMore = false;
 
-    res.status(200).json({ games, loadMore });
+    res.status(200).json({ games, loadMore, status: 200, total: gameTotal });
   } catch (err) {
     next(err);
   }
@@ -312,7 +323,7 @@ module.exports.getAllGames = async (req, res, next) => {
  ****************************/
 module.exports.getGame = async (req, res, next) => {
   try {
-    const gameId = req.query.id;
+    const gameId = req.query.gameId;
 
     const game = await Games.findOne({ _id: gameId });
 
