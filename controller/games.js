@@ -175,7 +175,7 @@ module.exports.getAllGames = async (req, res, next) => {
 
     if (demo) filter.demo = true;
 
-    if (dlc) filter["dlc.1"] = { $exists: true };
+    if (dlc) filter["dlc.0"] = { $exists: true };
 
     if (cloudSave) filter.cloudSave = true;
 

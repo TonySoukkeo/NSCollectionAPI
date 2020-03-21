@@ -5,6 +5,7 @@ const router = express.Router();
 const scraperControllers = require("../controller/scraper");
 
 router.get("/all", scraperControllers.runAll);
-router.get("/price", scraperControllers.checkForDuplicates);
-router.get("/fill-in", scraperControllers.getGameByUrl);
+// router.get("/duplicates", scraperControllers.checkForDuplicates);
+// router.get("/fix", scraperControllers.fixDlc);
+
 module.exports = router;

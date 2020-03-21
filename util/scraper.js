@@ -97,8 +97,10 @@ module.exports.getGames = async type => {
         games.querySelector(".strike")
       ) {
         // Games that are on sale
-        price = +games.querySelector(".sale-price").textContent.split("$")[1];
-        salePrice = +games.querySelector(".strike").textContent.split("$")[1];
+        price = +games.querySelector(".strike").textContent.split("$")[1];
+        salePrice = +games
+          .querySelector(".sale-price")
+          .textContent.split("$")[1];
       } else {
         // Games that aren't on sale, regulsr msrp
         price = +games
@@ -169,7 +171,16 @@ module.exports.getGameDetails = async url => {
     // Continue to the rest of the code if there is no verification form
   }
 
-  await page.waitFor(5000);
+  await page.waitFor(10000);
+
+  try {
+    await page.waitForSelector(
+      ".game-info-item.release-date dd",
+      date => date.textContent
+    );
+  } catch (err) {
+    console.log(url);
+  }
 
   try {
     // Evaluate html page
@@ -230,15 +241,16 @@ module.exports.getGameDetails = async url => {
         "NA";
 
       const gallery =
-        (document.querySelector("product-gallery") &&
+        (
+          document.querySelector("product-gallery") &&
           Array.from(document.querySelectorAll("product-gallery")).map(item => {
-            const test = item.shadowRoot;
+            const image = item.shadowRoot;
 
             return Array.from(
-              test.querySelectorAll("product-gallery-item[type=image]")
+              image.querySelectorAll("product-gallery-item[type=image]")
             ).map(img => `https://nintendo.com${img.src}`);
-          })) ||
-        [];
+          })
+        ).flat() || [];
 
       const dlc =
         (document.querySelectorAll(".dlc-area.dlc-purchase") &&

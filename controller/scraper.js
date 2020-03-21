@@ -26,77 +26,94 @@ const User = require("../models/user");
 // Utilities
 const { getGames, getGameDetails, searchGame } = require("../util/scraper");
 
+// module.exports.fixDlc = async (req, res, next) => {
+//   const dlcGames = await getGames("sale");
+
+//   for (let i = 0; i < dlcGames.length; i++) {
+//     await GamesDb.updateOne(
+//       { title: dlcGames[i].title },
+//       {
+//         price: dlcGames[i].price,
+//         salePrice: dlcGames[i].salePrice
+//       }
+//     );
+//   }
+
+//   res.status(200).json("updated");
+//   console.log("updated");
+// };
+
 /****************
  GET GAME BY URL
  ****************/
-module.exports.getGameByUrl = async (req, res, next) => {
-  try {
-    // const gameDetails = await getGameDetails(
-    //   "https://www.nintendo.com/games/detail/the-binding-of-isaac-afterbirth-plus-switch/",
-    //   "fill in"
-    // );
+// module.exports.getGameByUrl = async (req, res, next) => {
+//   try {
+// const gameDetails = await getGameDetails(
+//   "https://www.nintendo.com/games/detail/the-binding-of-isaac-afterbirth-plus-switch/",
+//   "fill in"
+// );
 
-    // const game = new GamesDb(gameDetails);
+// const game = new GamesDb(gameDetails);
 
-    // await game.save();
+// await game.save();
 
-    // current count = 850
-    const skip = 3;
-    const allGames = await GamesDb.find({}, "title releaseDate").skip(2398);
+// current count = 850
+//     const skip = 3;
+//     const allGames = await GamesDb.find({}, "title releaseDate").skip(2398);
 
-    for (let i = 0; i < allGames.length; i++) {
-      const releaseDate = await searchGame(allGames[i].title);
-      const game = await GamesDb.findOne(
-        { title: allGames[i].title },
-        "title releaseDate"
-      );
+//     for (let i = 0; i < allGames.length; i++) {
+//       const releaseDate = await searchGame(allGames[i].title);
+//       const game = await GamesDb.findOne(
+//         { title: allGames[i].title },
+//         "title releaseDate"
+//       );
 
-      if (releaseDate && game) {
-        // Titles matched
-        await game.updateOne({ $set: { releaseDate: releaseDate } });
-      } else {
-        // Titles did not match
-        let writeStream = fs.createWriteStream("gamesToBeFixed.txt", {
-          flags: "a"
-        });
+//       if (releaseDate && game) {
+//         // Titles matched
+//         await game.updateOne({ $set: { releaseDate: releaseDate } });
+//       } else {
+//         // Titles did not match
+//         let writeStream = fs.createWriteStream("gamesToBeFixed.txt", {
+//           flags: "a"
+//         });
 
-        writeStream.write(`${allGames[i].title}\r\n`);
+//         writeStream.write(`${allGames[i].title}\r\n`);
 
-        writeStream.end();
-      }
-    }
-    console.log("updated");
-    res.status(200).json("updated");
-  } catch (err) {
-    next(err);
-  }
-};
+//         writeStream.end();
+//       }
+//     }
+//     console.log("updated");
+//     res.status(200).json("updated");
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 /******************************
  CHECK FOR ANY DUPLICATE GAMES
  ******************************/
-module.exports.checkForDuplicates = async (req, res, next) => {
-  try {
-    const duplicates = await GamesDb.aggregate([
-      {
-        $group: {
-          _id: { title: "$title" },
-          uniqueIds: { $addToSet: "$_id" },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $match: {
-          count: { $gte: 2 }
-        }
-      }
-    ]);
+// module.exports.checkForDuplicates = async (req, res, next) => {
+//   try {
+//     const duplicates = await GamesDb.aggregate([
+//       {
+//         $group: {
+//           _id: { title: "$title" },
+//           uniqueIds: { $addToSet: "$_id" },
+//           count: { $sum: 1 }
+//         }
+//       },
+//       {
+//         $match: {
+//           count: { $gte: 2 }
+//         }
+//       }
+//     ]);
 
-    res.status(200).json(duplicates);
-  } catch (err) {
-    next(err);
-  }
-};
+//     res.status(200).json(duplicates);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 /***************************
  GET GAMES THAT ARE ON SALE
@@ -150,7 +167,7 @@ const getSaleGames = async () => {
     for (let i = 0; i < saleGames.length; i++) {
       const found = await GamesDb.findOne({ title: saleGames[i].title });
 
-      // Get all users to send sale notifications out with any saleGames title that are on their wishlist
+      // Get all users to send sale notifications out with any saleGames title that are on their salewatch
       const users = await User.find(
         {
           "saleWatch.title": saleGames[i].title,
@@ -184,13 +201,15 @@ const getSaleGames = async () => {
 
       // If sale game isn't found on GamesDb, create a new document for that game
       if (!found) {
-        const gameDetails = await getGameDetails(saleGames[i].url, "sale");
+        const gameDetails = await getGameDetails(saleGames[i].url);
 
         // Continue the loop if page is not found
         if (!gameDetails) continue;
 
         gameDetails.salePrice = saleGames[i].salePrice;
         gameDetails.title = saleGames[i].title;
+        gameDetails.image = saleGames[i].image;
+        gameDetails.price = saleGames[i].price;
 
         newGameEntry = new GamesDb(gameDetails);
 
@@ -263,7 +282,7 @@ const getSaleGames = async () => {
           // Push notificationsDetails to user's notifications
           await notifyUser.updateOne({
             $set: { "notifications.count": notificationCount },
-            $push: { "notifications.message": notificationDetails }
+            $push: { "notifications.messages": notificationDetails }
           });
 
           // Update notified to true for game on user's watchlist
@@ -320,6 +339,9 @@ const getDlc = async () => {
           const gameDb = new GamesDb(gameDetails);
 
           gameDb.title = dlcGames[i].title;
+          gameDb.salePrice = dlcGames[i].salePrice;
+          gameDb.price = dlcGames[i].price;
+          gameDb.image = dlcGames[i].image;
 
           await gameDb.save();
         } else {
@@ -370,15 +392,16 @@ const getComingSoon = async () => {
         });
 
         if (!found) {
-          const gameDetails = await getGameDetails(
-            comingSoonGames[i].url,
-            "coming soon"
-          );
+          const gameDetails = await getGameDetails(comingSoonGames[i].url);
 
           if (!gameDetails) continue;
 
           const gamesDb = new GamesDb(gameDetails);
           gamesDb.title = comingSoonGames[i].title;
+          gamesDb.price = comingSoonGames[i].price;
+          gamesDb.salePrice = comingSoonGames[i].salePrice;
+          gamesDb.image = comingSoonGames[i].image;
+
           await gamesDb.save();
         }
       }
@@ -422,6 +445,9 @@ const getGamesWithDemos = async () => {
           if (!gameDetails) continue;
 
           gameDetails.title = gameDemos[i].title;
+          gameDetails.price = gameDemos[i].price;
+          gameDetails.salePrice = gameDemos[i].salePrice;
+          gameDetails.image = gameDemos[i].image;
 
           const game = new GamesDb(gameDetails);
 
@@ -467,6 +493,8 @@ const getNewReleases = async () => {
 
           gameDetails.price = newRelease[i].price;
           gameDetails.title = newRelease[i].title;
+          gameDetails.salePrice = newRelease[i].salePrice;
+          gameDetails.image = newRelease[i].image;
 
           const gamesDb = new GamesDb(gameDetails);
           await gamesDb.save();
@@ -498,17 +526,14 @@ const getNewReleases = async () => {
 
 const runAll = async (req, res, next) => {
   try {
-    // await getSaleGames();
-    // await getDlc();
-    // await getComingSoon();
-    // await getGamesWithDemos();
-    // await getNewReleases();
-    const test = await getGames("sale");
+    await getSaleGames();
+    await getDlc();
+    await getComingSoon();
+    await getGamesWithDemos();
+    await getNewReleases();
 
-    res.status(200).json(test);
-
-    // console.log("Data base updated");
-    // res.status(200).json("DB Updated");
+    console.log("Data base updated");
+    res.status(200).json("DB Updated");
   } catch (err) {
     console.log(err);
     next(err);
