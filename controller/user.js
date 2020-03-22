@@ -696,3 +696,32 @@ module.exports.deleteNotification = async (req, res, next) => {
     next(err);
   }
 };
+
+/**************************
+ CHANGE ALLOW EMAIL OPTION
+ **************************/
+module.exports.postChangeAllowEmail = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to clear your notifications");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "allowEmail");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    // Update permissions for email
+    await user.updateOne({ allowEmail: !user.allowEmail });
+
+    res.status(201).json({ status: 201, message: "Successfully updated" });
+  } catch (err) {
+    next(err);
+  }
+};

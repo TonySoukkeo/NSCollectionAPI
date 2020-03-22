@@ -535,7 +535,7 @@ module.exports.postEditProfile = async (req, res, next) => {
     const userId = req.userId;
 
     const password = req.body.password;
-    console.log(password);
+
     if (!isAuth) {
       error(401, "Not authorized");
     }
@@ -549,7 +549,6 @@ module.exports.postEditProfile = async (req, res, next) => {
 
     // Check if password is being changed
     if (password.length > 0) {
-      console.log("change password");
       // Check if password is the same
       const samePassword = await bcrypt.compare(password, user.password);
 
@@ -557,7 +556,6 @@ module.exports.postEditProfile = async (req, res, next) => {
         error(422, "New password must be different from original");
       }
 
-      console.log("made it past");
       // Save new password against profile
       const hashedPw = await bcrypt.hash(password, 12);
 

@@ -64,4 +64,9 @@ router.get("/all-notifications", userControllers.getAllNotifications);
  ****************************/
 router.delete("/notifications", userControllers.deleteNotification);
 
+/*************************
+ CHANGE EMAIL PERMISSIONS
+ *************************/
+router.put("/permissions", userControllers.postChangeAllowEmail);
+
 module.exports = router;
