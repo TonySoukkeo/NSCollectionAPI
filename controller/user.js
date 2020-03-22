@@ -582,42 +582,6 @@ module.exports.deleteGameFromSaleWatch = async (req, res, next) => {
   }
 };
 
-/************************
- GET USER'S NOTIFICATION
- ************************/
-module.exports.getNotifications = async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const isAuth = req.isAuth;
-
-    // Check if user is authenticated
-    if (!isAuth) {
-      error(401, "You must be logged in to check your notifications");
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ _id: userId }, "notifications", {
-      "notifications.messages": { $slice: 5 }
-    });
-
-    if (!user) {
-      error(404, "User not found");
-    }
-
-    // Continue if there are no errors
-
-    // Reset count for notifications
-    await user.updateOne({ "notifications.count": 0 });
-
-    // Extract notifications messages from user
-    const notifications = user.notifications.messages;
-
-    res.status(200).json(notifications);
-  } catch (err) {
-    next(err);
-  }
-};
-
 /**************************
  GET ALL USER NOTIFICATIONS
  **************************/
@@ -626,7 +590,8 @@ module.exports.getAllNotifications = async (req, res, next) => {
     const isAuth = req.isAuth;
     const userId = req.userId;
 
-    const page = req.query.page || 1;
+    const page = +req.query.page || 1;
+    const limit = +req.query.limit;
 
     // Check if user is authenticated
     if (!isAuth) {
@@ -634,27 +599,32 @@ module.exports.getAllNotifications = async (req, res, next) => {
     }
 
     // Check if user exists
-    const user = await User.findOne({ _id: userId }, "notifications.messages");
+    const user = await User.findOne({ _id: userId }, "notifications").populate(
+      "notifications.messages.gameId",
+      "title salePrice price image"
+    );
 
     if (!user) {
       error(404, "User not found");
     }
 
+    // Reset count for notifications
+    await user.updateOne({ "notifications.count": 0 });
+
     // Set up pagination
 
     // Get total count of messages
-    const NUM_OF_ITEMS_ON_PAGE = 20;
     const totalMessages = user.notifications.messages.length;
     const messages = user.notifications.messages.slice(
-      page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE,
-      NUM_OF_ITEMS_ON_PAGE * page
+      page * limit - limit,
+      limit * page
     );
 
     let loadMore = true;
 
-    if (NUM_OF_ITEMS_ON_PAGE * page >= totalMessages) loadMore = false;
+    if (limit * page >= totalMessages) loadMore = false;
 
-    res.status(200).json({ messages, loadMore });
+    res.status(200).json({ status: 200, messages, loadMore });
   } catch (err) {
     next(err);
   }
@@ -683,7 +653,45 @@ module.exports.deleteUserNotifications = async (req, res, next) => {
     // Continue if there are no errors
     await user.updateOne({ $set: { "notifications.messages": [] } });
 
-    res.status(200).json("Notifications cleared");
+    res.status(200).json({ status: 200, message: "Notifications cleared" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/****************************************
+ DELETE SINGLE MESSAGE FROM NOTIFICATIONS
+ ****************************************/
+module.exports.deleteNotification = async (req, res, next) => {
+  try {
+    const isAuth = req.isAuth;
+    const userId = req.userId;
+    const gameId = req.body.gameId;
+
+    // Check if user is authenticated
+    if (!isAuth) {
+      error(401, "You must be logged in to clear your notifications");
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ _id: userId }, "notifications.messages");
+
+    if (!user) {
+      error(404, "User not found");
+    }
+
+    await User.updateOne(
+      { _id: userId },
+      {
+        $pull: {
+          "notifications.messages": {
+            gameId: gameId
+          }
+        }
+      }
+    );
+
+    res.status(201).json({ status: 201, message: "Notification deleted" });
   } catch (err) {
     next(err);
   }

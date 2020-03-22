@@ -52,16 +52,16 @@ router.delete("/salewatch", userControllers.deleteGameFromSaleWatch);
 /************************
  CLEAR USERS NOTIFICATIONS
  ************************/
-router.delete("/notifications", userControllers.deleteUserNotifications);
-
-/************************
- GET USERS NOTIFICATIONS
- ************************/
-router.get("/notifications", userControllers.getNotifications);
+router.delete("/clear", userControllers.deleteUserNotifications);
 
 /****************************
  GET ALL USERS NOTIFICATIONS
  ****************************/
 router.get("/all-notifications", userControllers.getAllNotifications);
+
+/****************************
+ DELETE NOTIFICATION MESSAGE
+ ****************************/
+router.delete("/notifications", userControllers.deleteNotification);
 
 module.exports = router;
