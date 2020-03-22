@@ -184,7 +184,7 @@ module.exports.getAllGames = async (req, res, next) => {
     if (newRelease) {
       const newGames = await NewReleases.find({}).populate(
         "details",
-        "title price salePrice image dlc cloudSave onlinePlay demo rating"
+        "title price salePrice image dlc cloudSave onlinePlay demo rating releaseDate"
       );
 
       games = newGames
@@ -237,7 +237,7 @@ module.exports.getAllGames = async (req, res, next) => {
     } else if (comingSoon) {
       const comingSoonGames = await ComingSoon.find().populate(
         "details",
-        "title price salePrice image dlc cloudSave onlinePlay demo rating"
+        "title price salePrice image dlc cloudSave onlinePlay demo rating releaseDate"
       );
 
       games = comingSoonGames
@@ -292,7 +292,7 @@ module.exports.getAllGames = async (req, res, next) => {
         {
           $and: [filter, priceFilter]
         },
-        "title price salePrice image rating cloudSave onlinePlay"
+        "title price salePrice image rating cloudSave onlinePlay releaseDate"
       )
         .limit(NUM_OF_ITEMS_ON_PAGE)
         .skip(page * NUM_OF_ITEMS_ON_PAGE - NUM_OF_ITEMS_ON_PAGE);
@@ -302,7 +302,7 @@ module.exports.getAllGames = async (req, res, next) => {
         {
           $and: [filter, priceFilter]
         },
-        "title price salePrice image rating cloudSave onlinePlay"
+        "title price salePrice image rating cloudSave onlinePlay releaseDate"
       );
 
       gameTotal = filteredGames.length;
@@ -312,7 +312,12 @@ module.exports.getAllGames = async (req, res, next) => {
 
     if (NUM_OF_ITEMS_ON_PAGE * page >= gameTotal) loadMore = false;
 
-    res.status(200).json({ games, loadMore, status: 200, total: gameTotal });
+    res.status(200).json({
+      games,
+      loadMore,
+      status: 200,
+      total: gameTotal
+    });
   } catch (err) {
     next(err);
   }

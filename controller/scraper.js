@@ -381,14 +381,16 @@ const getComingSoon = async () => {
     const currentComingSoonDb = await ComingSoonDb.find({});
 
     if (
-      currentComingSoonDb.length === 0 ||
-      currentComingSoonDb[0].title !== comingSoonGames[0].title ||
-      currentComingSoonDb.length !== comingSoonGames.length
+      // currentComingSoonDb.length === 0 ||
+      // currentComingSoonDb[0].title !== comingSoonGames[0].title ||
+      // currentComingSoonDb.length !== comingSoonGames.length
+      true
     ) {
       for (let i = 0; i < comingSoonGames.length; i++) {
+        const title = comingSoonGames[i].title;
         // Check if game isn't already in main database
         const found = await GamesDb.findOne({
-          title: comingSoonGames[i].title
+          title
         });
 
         if (!found) {
@@ -397,7 +399,7 @@ const getComingSoon = async () => {
           if (!gameDetails) continue;
 
           const gamesDb = new GamesDb(gameDetails);
-          gamesDb.title = comingSoonGames[i].title;
+          gamesDb.title = title;
           gamesDb.price = comingSoonGames[i].price;
           gamesDb.salePrice = comingSoonGames[i].salePrice;
           gamesDb.image = comingSoonGames[i].image;
@@ -498,6 +500,12 @@ const getNewReleases = async () => {
 
           const gamesDb = new GamesDb(gameDetails);
           await gamesDb.save();
+        } else {
+          // if game is found, update the prices of the game for the existing game
+          await found.updateOne({
+            price: newRelease[i].price,
+            salePrice: newRelease[i].salePrice
+          });
         }
       }
 
@@ -526,11 +534,11 @@ const getNewReleases = async () => {
 
 const runAll = async (req, res, next) => {
   try {
-    await getSaleGames();
-    await getDlc();
+    // await getSaleGames();
+    // await getDlc();
     await getComingSoon();
-    await getGamesWithDemos();
-    await getNewReleases();
+    // await getGamesWithDemos();
+    // await getNewReleases();
 
     console.log("Data base updated");
     res.status(200).json("DB Updated");

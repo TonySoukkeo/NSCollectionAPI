@@ -241,16 +241,17 @@ module.exports.getGameDetails = async url => {
         "NA";
 
       const gallery =
-        (
-          document.querySelector("product-gallery") &&
-          Array.from(document.querySelectorAll("product-gallery")).map(item => {
-            const image = item.shadowRoot;
+        (document.querySelector("product-gallery") &&
+          Array.from(document.querySelectorAll("product-gallery"))
+            .map(item => {
+              const image = item.shadowRoot;
 
-            return Array.from(
-              image.querySelectorAll("product-gallery-item[type=image]")
-            ).map(img => `https://nintendo.com${img.src}`);
-          })
-        ).flat() || [];
+              return Array.from(
+                image.querySelectorAll("product-gallery-item[type=image]")
+              ).map(img => `https://nintendo.com${img.src}`);
+            })
+            .flat()) ||
+        [];
 
       const dlc =
         (document.querySelectorAll(".dlc-area.dlc-purchase") &&
@@ -308,6 +309,7 @@ module.exports.getGameDetails = async url => {
     return gameDetails;
   } catch (err) {
     await browser.close();
+    console.log(err);
     return;
   }
 };
