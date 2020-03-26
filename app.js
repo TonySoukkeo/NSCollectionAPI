@@ -20,27 +20,6 @@ const app = express();
 // Parse incoming requests
 app.use(bodyParser.json());
 
-// Set headers
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, , X-Requested-With, Origin, Accept"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "OPTIONS, GET, POST, PUT, PATCH, DELETE"
-  );
-
-  res.statusCode = 200;
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
 // Authentification check
 app.use(isAuth);
 

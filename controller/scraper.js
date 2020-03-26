@@ -26,22 +26,834 @@ const User = require("../models/user");
 // Utilities
 const { getGames, getGameDetails, searchGame } = require("../util/scraper");
 
-// module.exports.fixDlc = async (req, res, next) => {
-//   const dlcGames = await getGames("sale");
+module.exports.fixDlc = async (req, res, next) => {
+  const brokenGameList = [
+    {
+      title: "Ninja Striker!",
+      url: "https://www.nintendo.com/games/detail/ninja-striker-switch/"
+    },
+    {
+      title: "NORTH",
+      url: "https://www.nintendo.com/games/detail/north-switch/"
+    },
+    {
+      title: "NO THING",
+      url: "https://www.nintendo.com/games/detail/no-thing-switch/"
+    },
+    {
+      title: "Odallus: The Dark Call",
+      url: "https://www.nintendo.com/games/detail/odallus-the-dark-call-switch/"
+    },
+    {
+      title: "OF MICE AND SAND -REVISED-",
+      url: ""
+    },
+    {
+      title: "OK K.O.! Let's Play Heroes",
+      url:
+        "https://www.nintendo.com/games/detail/ok-k-o-lets-play-heroes-switch/"
+    },
+    {
+      title: "One More Dungeon",
+      url: "https://www.nintendo.com/games/detail/one-more-dungeon-switch/"
+    },
+    {
+      title: "One Strike",
+      url: "https://www.nintendo.com/games/detail/one-strike-switch/"
+    },
+    {
+      title: "Oniken: Unstoppable Edition",
+      url:
+        "https://www.nintendo.com/games/detail/oniken-unstoppable-edition-odallus-the-dark-call-bundle-switch/"
+    },
+    {
+      title: "Overland",
+      url: "https://www.nintendo.com/games/detail/overland-switch/"
+    },
+    {
+      title: "OUT OF THE BOX",
+      url: "https://www.nintendo.com/games/detail/out-of-the-box-switch/"
+    },
+    {
+      title: "Out There: Ω The Alliance",
+      url:
+        "https://www.nintendo.com/games/detail/out-there-omega-the-alliance-switch/"
+    },
+    {
+      title: "Paladins",
+      url: "https://www.nintendo.com/games/detail/paladins-switch/"
+    },
+    {
+      title: "Phantom Doctrine",
+      url: "https://www.nintendo.com/games/detail/phantom-doctrine-switch/"
+    },
+    {
+      title: "PICROSS S",
+      url: "https://www.nintendo.com/games/detail/picross-s-switch/"
+    },
+    {
+      title: "Piczle Lines DX",
+      url: "https://www.nintendo.com/games/detail/piczle-lines-dx-switch/"
+    },
+    {
+      title: "Pillar",
+      url: "https://www.nintendo.com/games/detail/pillar-switch/"
+    },
+    {
+      title: "The Pinball Arcade",
+      url: "https://www.nintendo.com/games/detail/the-pinball-arcade-switch/"
+    },
+    {
+      title: "Please, Don't Touch Anything",
+      url:
+        "https://www.nintendo.com/games/detail/please-dont-touch-anything-switch/"
+    },
+    {
+      title: "Pode",
+      url: "https://www.nintendo.com/games/detail/pode-switch/"
+    },
+    {
+      title: "Pool BILLIARD",
+      url: "https://www.nintendo.com/games/detail/pool-billiard-switch/"
+    },
+    {
+      title: "RAD",
+      url: "https://www.nintendo.com/games/detail/rad-switch/"
+    },
+    {
+      title: "Resident Evil",
+      url: "https://www.nintendo.com/games/detail/resident-evil-switch/"
+    },
+    {
+      title: "Risk of Rain",
+      url: "https://www.nintendo.com/games/detail/risk-of-rain-switch/"
+    },
+    {
+      title: "Rocket League",
+      url: "https://www.nintendo.com/games/detail/rocket-league-switch/"
+    },
+    {
+      title: "Rolling Sky",
+      url: "https://www.nintendo.com/games/detail/rolling-sky-switch/"
+    },
+    {
+      title: "The Room",
+      url: "https://www.nintendo.com/games/detail/the-room-switch/"
+    },
+    {
+      title: "Saboteur!",
+      url: "https://www.nintendo.com/games/detail/saboteur-switch/"
+    },
+    {
+      title: "SaGa SCARLET GRACE: AMBITIONS",
+      url:
+        "https://www.nintendo.com/games/detail/saga-scarlet-grace-ambitions-switch/"
+    },
+    {
+      title: "Sea King",
+      url: "https://www.nintendo.com/games/detail/sea-king-switch/"
+    },
+    {
+      title: "Season Match",
+      url: "https://www.nintendo.com/games/detail/season-match-switch/"
+    },
+    {
+      title: "SEGA AGES Puyo Puyo",
+      url: "https://www.nintendo.com/games/detail/sega-ages-puyo-puyo-switch/"
+    },
+    {
+      title: "Shantae: Half-Genie Hero",
+      url:
+        "https://www.nintendo.com/games/detail/shantae-half-genie-hero-switch/"
+    },
+    {
+      title: "Shio",
+      url: "https://www.nintendo.com/games/detail/shio-switch/"
+    },
+    {
+      title: "Shred! 2 - Freeride Mountainbiking",
+      url:
+        "https://www.nintendo.com/games/detail/shred-2-ft-sam-pilgrim-switch/"
+    },
+    {
+      title: "Silk",
+      url: "https://www.nintendo.com/games/detail/silk-switch/"
+    },
+    {
+      title: "Sky Gamblers: Storm Raiders",
+      url:
+        "https://www.nintendo.com/games/detail/sky-gamblers-storm-raiders-switch/"
+    },
+    {
+      title: "SOL DIVIDE -SWORD OF DARKNESS- for Nintendo Switch",
+      url:
+        "https://www.nintendo.com/games/detail/sol-divide-sword-of-darkness-for-nintendo-switch/"
+    },
+    {
+      title: "Solitaire",
+      url: "https://www.nintendo.com/games/detail/solitaire-switch/"
+    },
+    {
+      title: "Son of a Witch",
+      url: "https://www.nintendo.com/games/detail/son-of-a-witch-switch/"
+    },
+    {
+      title: "Sparkle 2",
+      url: "https://www.nintendo.com/games/detail/sparkle-2-switch/"
+    },
+    {
+      title: "Spartan",
+      url: "https://www.nintendo.com/games/detail/spartan-switch/"
+    },
+    {
+      title: "Spectrum",
+      url: "https://www.nintendo.com/games/detail/spectrum-switch/"
+    },
+    {
+      title: "SpellKeeper",
+      url: ""
+    },
+    {
+      title: "Spot The Difference",
+      url: "https://www.nintendo.com/games/detail/spot-the-difference-switch/"
+    },
+    {
+      title: "Startide",
+      url: "https://www.nintendo.com/games/detail/startide-switch/"
+    },
+    {
+      title: "STAR WARS Jedi Knight II: Jedi Outcast",
+      url:
+        "https://www.nintendo.com/games/detail/star-wars-jedi-knight-ii-jedi-outcast-switch/"
+    },
+    {
+      title: "STAY",
+      url: "https://www.nintendo.com/games/detail/stay-switch/"
+    },
+    {
+      title: "SteamWorld Dig",
+      url: "https://www.nintendo.com/games/detail/steamworld-dig-switch/"
+    },
+    {
+      title: "Steven Universe: Save the Light",
+      url:
+        "https://www.nintendo.com/games/detail/steven-universe-save-the-light-switch/"
+    },
+    {
+      title: "Storm Boy",
+      url: "https://www.nintendo.com/games/detail/storm-boy-switch/"
+    },
+    {
+      title: "STRIKERS1945 for Nintendo Switch",
+      url:
+        "https://www.nintendo.com/games/detail/strikers1945-for-nintendo-switch/"
+    },
+    {
+      title: "STUMP",
+      url: ""
+    },
+    {
+      title: "Sudoku Relax",
+      url: "https://www.nintendo.com/games/detail/sudoku-relax-switch/"
+    },
+    {
+      title: "Suicide Guy",
+      url: "https://www.nintendo.com/games/detail/suicide-guy-switch/"
+    },
+    {
+      title: "Super Kirby Clash",
+      url: "https://www.nintendo.com/games/detail/super-kirby-clash-switch/"
+    },
+    {
+      title: "Super Meat Boy",
+      url: "https://www.nintendo.com/games/detail/super-meat-boy-switch/"
+    },
+    {
+      title: "Super One More Jump",
+      url: "https://www.nintendo.com/games/detail/super-one-more-jump-switch/"
+    },
+    {
+      title: "Swap This!",
+      url: "https://www.nintendo.com/games/detail/swap-this-switch/"
+    },
+    {
+      title: "SYMMETRY",
+      url: ""
+    },
+    {
+      title: "Tactical Mind",
+      url: "https://www.nintendo.com/games/detail/tactical-mind-switch/"
+    },
+    {
+      title: "Tennis",
+      url: "https://www.nintendo.com/games/detail/tennis-switch/"
+    },
+    {
+      title: "Tennis in the Face",
+      url: "https://www.nintendo.com/games/detail/tennis-in-the-face-switch/"
+    },
+    {
+      title: "Tetris 99",
+      url: "https://www.nintendo.com/games/detail/tetris-99-switch/"
+    },
+    {
+      title: "Them Bombs!",
+      url: "https://www.nintendo.com/games/detail/them-bombs-switch/"
+    },
+    {
+      title: "TINY METAL",
+      url: "https://www.nintendo.com/games/detail/tiny-metal-switch/"
+    },
+    {
+      title: "Toki Tori",
+      url: "https://www.nintendo.com/games/detail/toki-tori-switch/"
+    },
+    {
+      title: "TorqueL -Physics Modified Edition-",
+      url:
+        "https://www.nintendo.com/games/detail/torquel-physics-modified-edition-switch/"
+    },
+    {
+      title: "TOUHOU SKY ARENA -MATSURI-CLIMAX",
+      url:
+        "https://www.nintendo.com/games/detail/touhou-sky-arena-matsuri-climax-switch/"
+    },
+    {
+      title: "Tower Of Babel",
+      url: "https://www.nintendo.com/games/detail/tower-of-babel-switch/"
+    },
+    {
+      title: "Thea: The Awakening",
+      url: "https://www.nintendo.com/games/detail/thea-the-awakening-switch/"
+    },
+    {
+      title: "Trials Rising Open Beta",
+      url:
+        "https://www.nintendo.com/games/detail/trials-rising-standard-edition-switch/"
+    },
+    {
+      title: "Turok",
+      url: "https://www.nintendo.com/games/detail/turok-switch/"
+    },
+    {
+      title: "Ultrawings",
+      url: "https://www.nintendo.com/games/detail/ultrawings-flat-switch/"
+    },
+    {
+      title: "UNI",
+      url: "https://www.nintendo.com/games/detail/uni-switch/"
+    },
+    {
+      title: "UNO for Nintendo Switch",
+      url: "https://www.nintendo.com/games/detail/uno-for-nintendo-switch/"
+    },
+    {
+      title: "V.O.I.D.",
+      url: "https://www.nintendo.com/games/detail/v-o-i-d-switch/"
+    },
+    {
+      title: "Warframe",
+      url: "https://www.nintendo.com/games/detail/warframe-switch/"
+    },
+    {
+      title: "Warhammer Quest",
+      url: "https://www.nintendo.com/games/detail/warhammer-quest-switch/"
+    },
+    {
+      title: "Where Are My Friends?",
+      url: "https://www.nintendo.com/games/detail/where-are-my-friends-switch/"
+    },
+    {
+      title: "Witch & Hero",
+      url: "https://www.nintendo.com/games/detail/witch-and-hero-2-switch/"
+    },
+    {
+      title: "Word Mesh",
+      url: "https://www.nintendo.com/games/detail/word-mesh-switch/"
+    },
+    {
+      title: "World of Goo",
+      url: "https://www.nintendo.com/games/detail/world-of-goo-switch/"
+    },
+    {
+      title: "Yooka-Laylee",
+      url: "https://www.nintendo.com/games/detail/yooka-laylee-switch/"
+    },
+    {
+      title: "Your Toy",
+      url: "https://www.nintendo.com/games/detail/your-toy-switch/"
+    },
+    {
+      title: "YouTube",
+      url: "https://www.nintendo.com/games/detail/youtube-switch/"
+    },
+    {
+      title: "YUMENIKKI -DREAM DIARY-",
+      url: "https://www.nintendo.com/games/detail/yumenikki-dream-diary-switch/"
+    },
+    {
+      title: "ZOMB",
+      url: "https://www.nintendo.com/games/detail/zomb-switch/"
+    },
+    {
+      title: "Arcade Archives DONKEY KONG",
+      url:
+        "https://www.nintendo.com/games/detail/arcade-archives-donkey-kong-switch/"
+    },
+    {
+      title: "Arcade Archives DOUBLE DRAGON",
+      url:
+        "https://www.nintendo.com/games/detail/arcade-archives-double-dragon-switch/"
+    },
+    {
+      title: "Arcade Archives Mario Bros.",
+      url:
+        "https://www.nintendo.com/games/detail/arcade-archives-mario-bros-switch/"
+    },
+    {
+      title: "Arcade Archives WILD WESTERN",
+      url:
+        "https://www.nintendo.com/games/detail/arcade-archives-wild-western-switch/"
+    },
+    {
+      title: "ACA NEOGEO ART OF FIGHTING",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-art-of-fighting-switch/"
+    },
+    {
+      title: "Arcade Archives ELEVATOR ACTION",
+      url: ""
+    },
+    {
+      title: "ACA NEOGEO FATAL FURY 2",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-fatal-fury-2-switch/"
+    },
+    {
+      title: "ACA NEOGEO FATAL FURY SPECIAL",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-fatal-fury-special-switch/"
+    },
+    {
+      title: "ACA NEOGEO KING OF THE MONSTERS",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-king-of-the-monsters-switch/"
+    },
+    {
+      title: "ACA NEOGEO THE LAST BLADE",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-the-last-blade-switch/"
+    },
+    {
+      title: "ACA NEOGEO MAGICAL DROP II",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-magical-drop-2-switch/"
+    },
+    {
+      title: "ACA NEOGEO METAL SLUG",
+      url: "https://www.nintendo.com/games/detail/aca-neogeo-metal-slug-switch/"
+    },
+    {
+      title: "ACA NEOGEO OVER TOP",
+      url: "https://www.nintendo.com/games/detail/aca-neogeo-over-top-switch/"
+    },
+    {
+      title: "ACA NEOGEO PUZZLE BOBBLE",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-puzzle-bobble-switch/"
+    },
+    {
+      title: "ACA NEOGEO REAL BOUT FATAL FURY",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-real-bout-fatal-fury-switch/"
+    },
+    {
+      title: "ACA NEOGEO SAMURAI SHODOWN",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-samurai-showdown-switch/"
+    },
+    {
+      title: "ACA NEOGEO SAMURAI SHODOWN II",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-samurai-shodown-2-switch/"
+    },
+    {
+      title: "ACA NEOGEO SAMURAI SHODOWN V",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-samurai-shodown-v-switch/"
+    },
+    {
+      title: "ACA NEOGEO SENGOKU",
+      url: "https://www.nintendo.com/games/detail/aca-neogeo-sengoku-switch/"
+    },
+    {
+      title: "ACA NEOGEO SHOCK TROOPERS",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-shock-troopers-switch/"
+    },
+    {
+      title: "ACA NEOGEO STAKES WINNER",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-stakes-winner-switch/"
+    },
+    {
+      title: "ACA NEOGEO SUPER SIDEKICKS",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-super-sidekicks-switch/"
+    },
+    {
+      title: "ACA NEOGEO WORLD HEROES",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-world-heroes-switch/"
+    },
+    {
+      title: "ACA NEOGEO WORLD HEROES 2",
+      url:
+        "https://www.nintendo.com/games/detail/aca-neogeo-world-heroes-2-switch/"
+    },
+    {
+      title: "Trials of Mana",
+      url: "https://www.nintendo.com/games/detail/trials-of-mana-switch/"
+    },
+    {
+      title: "Railway Empire - Nintendo Switch Edition",
+      url:
+        "https://www.nintendo.com/games/detail/railway-empire-nintendo-switch-edition-switch/"
+    },
+    {
+      title: "The Dark Crystal: Age of Resistance-Tactics",
+      url:
+        "https://www.nintendo.com/games/detail/the-dark-crystal-age-of-resistance-tactics-switch/"
+    },
+    {
+      title: "Just Dance 2020",
+      url: "https://www.nintendo.com/games/detail/just-dance-2020-switch/"
+    },
+    {
+      title: "KILL la KILL -IF",
+      url: "https://www.nintendo.com/games/detail/kill-la-kill-if-switch/"
+    },
+    {
+      title: "Mega Man 11",
+      url: "https://www.nintendo.com/games/detail/mega-man-11-switch/"
+    },
+    {
+      title: "Mega Man 11 - amiibo Edition",
+      url:
+        "https://www.nintendo.com/games/detail/mega-man-11-amiibo-edition-switch/"
+    },
+    {
+      title: "Octopath Traveler Wayfarer's Edition",
+      url:
+        "https://www.nintendo.com/games/detail/octopath-traveler-wayfarers-edition-switch/"
+    },
+    {
+      title: "Octopath Traveler",
+      url: "https://www.nintendo.com/games/detail/octopath-traveler-switch/"
+    },
+    {
+      title: "Dragon Quest Builders",
+      url: "https://www.nintendo.com/games/detail/dragon-quest-builders-switch/"
+    },
+    {
+      title: "Rayman Legends Definitive Edition",
+      url:
+        "https://www.nintendo.com/games/detail/rayman-legends-definitive-edition-switch/"
+    },
+    {
+      title: "I and Me",
+      url: "https://www.nintendo.com/games/detail/i-and-me-switch/"
+    },
+    {
+      title: "Snipperclips - Cut it out, together!",
+      url: "https://www.nintendo.com/games/detail/snipperclips-plus-switch/"
+    },
+    {
+      title: "PRINCESS MAKER -FAERY TALES COME TRUE-",
+      url:
+        "https://www.nintendo.com/games/detail/princess-maker-faery-tales-come-true-switch/"
+    },
+    {
+      title: "Assassin’s Creed: The Rebel Collection",
+      url:
+        "https://www.nintendo.com/games/detail/assassins-creed-the-rebel-collection-switch/"
+    },
+    {
+      title: "FoxyLand",
+      url: "https://www.nintendo.com/games/detail/foxyland-switch/"
+    },
+    {
+      title: "Five Nights at Freddy's",
+      url:
+        "https://www.nintendo.com/games/detail/five-nights-at-freddys-switch/"
+    },
+    {
+      title: "Zumba Burn It Up!",
+      url: "https://www.nintendo.com/games/detail/zumba-burn-it-up-switch/"
+    },
+    {
+      title: "Pokémon Sword",
+      url: "https://www.nintendo.com/games/detail/pokemon-sword-switch/"
+    },
+    {
+      title: "Into the Dead 2",
+      url: "https://www.nintendo.com/games/detail/into-the-dead-2-switch/"
+    },
+    {
+      title: "Cat Quest II",
+      url: "https://www.nintendo.com/games/detail/cat-quest-ii-switch/"
+    },
+    {
+      title: "The Park",
+      url: "https://www.nintendo.com/games/detail/the-park-switch/"
+    },
+    {
+      title: "Overwatch: Legendary Edition",
+      url:
+        "https://www.nintendo.com/games/detail/overwatch-legendary-edition-switch/"
+    },
+    {
+      title: "Reventure",
+      url: "https://www.nintendo.com/games/detail/reventure-switch/"
+    },
+    {
+      title: "EA SPORTS FIFA 20 Nintendo Switch Legacy Edition",
+      url:
+        "https://www.nintendo.com/games/detail/ea-sports-fifa-20-nintendo-switch-legacy-edition/"
+    },
+    {
+      title: "LEGO Jurassic World",
+      url: "https://www.nintendo.com/games/detail/lego-jurassic-world-switch/"
+    },
+    {
+      title: "CHOP",
+      url: "https://www.nintendo.com/games/detail/chop-switch/"
+    },
+    {
+      title: "Munchkin: Quacked Quest",
+      url: "https://www.nintendo.com/games/detail/munchkin-switch/"
+    },
+    {
+      title: "Pokémon Sword and Pokémon Shield Double Pack",
+      url:
+        "https://www.nintendo.com/games/detail/pokemon-sword-and-pokemon-shield-double-pack-switch/"
+    },
+    {
+      title: "Minefield",
+      url: "https://www.nintendo.com/games/detail/minefield-switch/"
+    },
+    {
+      title: "The Legend of Zelda: Link’s Awakening",
+      url:
+        "https://www.nintendo.com/games/detail/the-legend-of-zelda-links-awakening-switch/"
+    },
+    {
+      title: "Super Nintendo Entertainment System - Nintendo Switch Online",
+      url:
+        "https://www.nintendo.com/games/detail/super-nintendo-entertainment-system-nintendo-switch-online/"
+    },
+    {
+      title: "Star-Crossed Myth - The Department of Wishes -",
+      url:
+        "https://www.nintendo.com/games/detail/star-crossed-myth-the-department-of-wishes-switch/"
+    },
+    {
+      title: "Grand Brix Shooter",
+      url: "https://www.nintendo.com/games/detail/grand-brix-shooter-switch/"
+    },
+    {
+      title: "Eight-Minute Empire: Complete Edition",
+      url: "https://www.nintendo.com/games/detail/eight-minute-empire-switch/"
+    },
+    {
+      title: "Wolfenstein: Youngblood",
+      url:
+        "https://www.nintendo.com/games/detail/wolfenstein-youngblood-switch/"
+    },
+    {
+      title: "Penguin Wars",
+      url: "https://www.nintendo.com/games/detail/penguin-wars-switch/"
+    },
+    {
+      title: "For The King",
+      url: "https://www.nintendo.com/games/detail/for-the-king-switch/"
+    },
+    {
+      title: "Cytus α",
+      url: "https://www.nintendo.com/games/detail/cytus-a-switch/"
+    },
+    {
+      title: "DARK SOULS: REMASTERED",
+      url: "https://www.nintendo.com/games/detail/dark-souls-remastered-switch/"
+    },
+    {
+      title: "Super Mario Party",
+      url: "https://www.nintendo.com/games/detail/super-mario-party-switch/"
+    },
+    {
+      title: "Nintendo Entertainment System - Nintendo Switch Online",
+      url:
+        "https://www.nintendo.com/games/detail/nintendo-entertainment-system-nintendo-switch-online/"
+    },
+    {
+      title: "Xenoblade Chronicles 2",
+      url:
+        "https://www.nintendo.com/games/detail/xenoblade-chronicles-2-switch/"
+    },
+    {
+      title: "Rocket League: Collector's Edition",
+      url:
+        "https://www.nintendo.com/games/detail/rocket-league-collectors-edition-switch/"
+    },
+    {
+      title: "DOOM",
+      url: "https://www.nintendo.com/games/detail/doom-switch/"
+    },
+    {
+      title: "Super Mario Odyssey",
+      url: "https://www.nintendo.com/games/detail/super-mario-odyssey-switch/"
+    },
+    {
+      title: "NBA 2K18",
+      url: "https://www.nintendo.com/games/detail/nba-2k18-switch/"
+    },
+    {
+      title: "LEGO Worlds",
+      url: "https://www.nintendo.com/games/detail/lego-worlds-switch/"
+    },
+    {
+      title: "Mario + Rabbids Kingdom Battle",
+      url:
+        "https://www.nintendo.com/games/detail/mario-rabbids-kingdom-battle-switch/"
+    },
+    {
+      title: "Splatoon 2",
+      url: "https://www.nintendo.com/games/detail/splatoon-2-switch/"
+    },
+    {
+      title: "The Legend of Zelda: Breath of the Wild",
+      url:
+        "https://www.nintendo.com/games/detail/the-legend-of-zelda-breath-of-the-wild-switch/"
+    },
+    {
+      title: "LEGO The Incredibles",
+      url: "https://www.nintendo.com/games/detail/lego-the-incredibles-switch/"
+    },
+    {
+      title: "Harvest Moon: Light of Hope Special Edition",
+      url:
+        "https://www.nintendo.com/games/detail/harvest-moon-light-of-hope-special-edition-switch/"
+    },
+    {
+      title: "Gal*Gun 2",
+      url: "https://www.nintendo.com/games/detail/gal-gun-2-switch/"
+    },
+    {
+      title: "Gear.Club Unlimited",
+      url: "https://www.nintendo.com/games/detail/gear-club-unlimited-switch/"
+    },
+    {
+      title: "The Elder Scrolls V: Skyrim",
+      url:
+        "https://www.nintendo.com/games/detail/the-elder-scrolls-v-skyrim-switch/"
+    },
+    {
+      title: "LEGO Marvel Super Heroes 2",
+      url:
+        "https://www.nintendo.com/games/detail/lego-marvel-super-heroes-2-switch/"
+    },
+    {
+      title: "Swords & Soldiers",
+      url: "https://www.nintendo.com/games/detail/swords-and-soldiers-switch/"
+    },
+    {
+      title: "Toki",
+      url: "https://www.nintendo.com/games/detail/toki-switch/"
+    },
+    {
+      title: "FLASHBACK",
+      url: "https://www.nintendo.com/games/detail/flashback-switch/"
+    },
+    {
+      title: "Syberia 2",
+      url: "https://www.nintendo.com/games/detail/syberia-2-switch/"
+    },
+    {
+      title: "Syberia",
+      url: "https://www.nintendo.com/games/detail/syberia-switch/"
+    },
+    {
+      title: "Cat Quest",
+      url: "https://www.nintendo.com/games/detail/cat-quest-switch/"
+    },
+    {
+      title: "Zero Zero Zero Zero",
+      url: "https://www.nintendo.com/games/detail/zero-zero-zero-zero-switch/"
+    },
+    {
+      title: "Velocity2X",
+      url: "https://www.nintendo.com/games/detail/velocity2x-switch/"
+    },
+    {
+      title: "Saints Row IV: Re-Elected",
+      url:
+        "https://www.nintendo.com/games/detail/saints-row-4-re-elected-switch/"
+    },
+    {
+      title: "Tennis Go",
+      url: "https://www.nintendo.com/games/detail/tennis-go-switch/"
+    },
+    {
+      title: "Spyro Reignited Trilogy",
+      url:
+        "https://www.nintendo.com/games/detail/spyro-reignited-trilogy-switch/"
+    },
+    {
+      title: "Valiant Hearts: The Great War",
+      url:
+        "https://www.nintendo.com/games/detail/valiant-hearts-the-great-war-switch/"
+    },
+    {
+      title: "Mega Man Legacy Collection",
+      url:
+        "https://www.nintendo.com/games/detail/mega-man-legacy-collection-switch/"
+    },
+    {
+      title: "Mega Man Legacy Collection 2",
+      url:
+        "https://www.nintendo.com/games/detail/mega-man-legacy-collection-2-switch/"
+    },
+    {
+      title: "Fe",
+      url: "https://www.nintendo.com/games/detail/fe-switch/"
+    },
+    {
+      title: "LEGO NINJAGO Movie Video Game",
+      url:
+        "https://www.nintendo.com/games/detail/lego-ninjago-movie-video-game-switch/"
+    },
+    {
+      title: "LEGO CITY Undercover",
+      url: "https://www.nintendo.com/games/detail/lego-city-undercover-switch/"
+    }
+  ];
 
-//   for (let i = 0; i < dlcGames.length; i++) {
-//     await GamesDb.updateOne(
-//       { title: dlcGames[i].title },
-//       {
-//         price: dlcGames[i].price,
-//         salePrice: dlcGames[i].salePrice
-//       }
-//     );
-//   }
-
-//   res.status(200).json("updated");
-//   console.log("updated");
-// };
+  for (let i = 0; i < brokenGameList.length; i++) {
+    const game = brokenGameList[i];
+    // Check if game has a url
+    if (!game.url) continue;
+    else {
+      const releaseDate = await getGameDetails(game.url);
+      // Update game release date from mongodb
+      await GamesDb.updateOne(
+        { title: game.title },
+        { releaseDate: releaseDate.releaseDate }
+      );
+    }
+  }
+  console.log("Updated Release Date");
+  res.status(200).json("Updated Release Date");
+};
 
 /****************
  GET GAME BY URL
@@ -548,4 +1360,4 @@ const runAll = async (req, res, next) => {
   }
 };
 
-module.exports.runAll = runAll;
+// module.exports.runAll = runAll;
