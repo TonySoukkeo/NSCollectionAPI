@@ -2,6 +2,7 @@ const dotenv = require("dotenv");
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 // Initialize dotenv
 dotenv.config(process.env.MONGO_URI);
@@ -16,6 +17,8 @@ const gameRoutes = require("./routes/games");
 const userRoutes = require("./routes/user");
 
 const app = express();
+
+app.use(cors());
 
 // Parse incoming requests
 app.use(bodyParser.json());

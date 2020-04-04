@@ -15,8 +15,8 @@ dotenv.config();
 const options = {
   auth: {
     api_user: process.env.SENDGRID_USER,
-    api_key: process.env.SENDGRID_KEY
-  }
+    api_key: process.env.SENDGRID_KEY,
+  },
 };
 
 const client = nodemailer.createTransport(sgTransport(options));
@@ -79,7 +79,7 @@ module.exports.register = async (req, res, next) => {
 
     // Check if email isn't already being used
     const emailAlreadyExists = await User.findOne({
-      email: email.toLowerCase()
+      email: email.toLowerCase(),
     });
 
     if (emailAlreadyExists) {
@@ -111,21 +111,21 @@ module.exports.register = async (req, res, next) => {
       userName,
       email: email.toLowerCase(),
       password: hashedPw,
-      allowEmail
+      allowEmail,
     });
 
-    await user.save(async err => {
+    await user.save(async (err) => {
       if (err) throw err;
 
       try {
         // Create verification token for email verify
         const verifyToken = new Token({
           _userId: user._id,
-          token: await crypto.randomBytes(16).toString("hex")
+          token: await crypto.randomBytes(16).toString("hex"),
         });
 
         // Save verification token
-        await verifyToken.save(err => {
+        await verifyToken.save((err) => {
           if (err) throw new Error(err);
 
           try {
@@ -138,7 +138,7 @@ module.exports.register = async (req, res, next) => {
             <h4>Click the following link to verify your email address</h4>
 
             <p><a href="${process.env.API_URI}/confirm?id=${user._id}&token=${verifyToken.token}">Confirm Email</a></p>
-          `
+          `,
             });
           } catch (err) {
             throw err;
@@ -152,7 +152,7 @@ module.exports.register = async (req, res, next) => {
     res.status(200).json({
       message:
         "Sucesfully Registered! A confirmation code has been sent to your email",
-      status: 200
+      status: 200,
     });
   } catch (err) {
     next(err);
@@ -228,11 +228,11 @@ module.exports.resendVerification = async (req, res, next) => {
     // Create verification token for email verify
     const verifyToken = new Token({
       _userId: userExists._id,
-      token: await crypto.randomBytes(16).toString("hex")
+      token: await crypto.randomBytes(16).toString("hex"),
     });
 
     // Save verification token
-    await verifyToken.save(err => {
+    await verifyToken.save((err) => {
       if (err) throw new Error(err);
 
       try {
@@ -245,7 +245,7 @@ module.exports.resendVerification = async (req, res, next) => {
         <h4>Click the following link to verify your email address</h4>
 
         <p><a href="${process.env.API_URI}/auth/verify?id=${userExists._id}&token=${verifyToken.token}">Confirm Email</a></p>
-      `
+      `,
         });
       } catch (err) {
         throw err;
@@ -295,14 +295,20 @@ module.exports.postLogin = async (req, res, next) => {
       }
 
       // Check if user exists
-      user = await User.findOne({ email: userLogin.toLowerCase() });
+      user = await User.findOne(
+        { email: userLogin.toLowerCase() },
+        { password: 0, pwResetToken: 0, pwResetExpiration: 0 }
+      );
 
       if (!user) {
         error(422, "Invalid username/email or password");
       }
     } else {
       // Check if user exists against username
-      user = await User.findOne({ userName: userLogin });
+      user = await User.findOne(
+        { userName: userLogin },
+        { password: 0, pwResetToken: 0, pwResetExpiration: 0 }
+      );
 
       if (!user) {
         error(422, "Invalid username/email or password");
@@ -324,12 +330,20 @@ module.exports.postLogin = async (req, res, next) => {
     // Create jsonwebtoken
     const token = jwt.sign(
       {
-        userId: user._id.toString()
+        userId: user._id.toString(),
       },
       process.env.JWT_SECRET
     );
 
-    res.status(200).json({ token, userId: user._id.toString(), status: 200 });
+    res
+      .status(200)
+      .json({
+        token,
+        userId: user._id.toString(),
+        user,
+        isAuth: true,
+        status: 200,
+      });
   } catch (err) {
     next(err);
   }
@@ -378,14 +392,14 @@ module.exports.postPasswordReset = async (req, res, next) => {
         <h4>Click the following link to reset your password</h4>
 
         <p><a href="${process.env.API_URI}/auth/password-reset/${pwResetToken}">Reset Password</a></p>
-      `
+      `,
     });
 
     await userExists.save();
 
     res.status(200).json({
       message: "A password reset link has been sent your email.",
-      status: 200
+      status: 200,
     });
   } catch (err) {
     next(err);
