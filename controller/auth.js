@@ -297,8 +297,8 @@ module.exports.postLogin = async (req, res, next) => {
       // Check if user exists
       user = await User.findOne(
         { email: userLogin.toLowerCase() },
-        { password: 0, pwResetToken: 0, pwResetExpiration: 0 }
-      );
+        { pwResetToken: 0, pwResetExpiration: 0 }
+      ).populate("gameCollection.gameId", "title image rating");
 
       if (!user) {
         error(422, "Invalid username/email or password");
@@ -307,8 +307,8 @@ module.exports.postLogin = async (req, res, next) => {
       // Check if user exists against username
       user = await User.findOne(
         { userName: userLogin },
-        { password: 0, pwResetToken: 0, pwResetExpiration: 0 }
-      );
+        { pwResetToken: 0, pwResetExpiration: 0 }
+      ).populate("gameCollection.gameId", "title image rating");
 
       if (!user) {
         error(422, "Invalid username/email or password");
@@ -335,15 +335,13 @@ module.exports.postLogin = async (req, res, next) => {
       process.env.JWT_SECRET
     );
 
-    res
-      .status(200)
-      .json({
-        token,
-        userId: user._id.toString(),
-        user,
-        isAuth: true,
-        status: 200,
-      });
+    res.status(200).json({
+      token,
+      userId: user._id.toString(),
+      user,
+      isAuth: true,
+      status: 200,
+    });
   } catch (err) {
     next(err);
   }
